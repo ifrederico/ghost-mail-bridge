@@ -1,0 +1,39 @@
+{
+  "name": "ghost-ses-proxy",
+  "version": "1.0.0",
+  "description": "Send Ghost newsletter emails through AWS SES instead of Mailgun — drop-in Mailgun API proxy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/josephsellers/ghost-ses-proxy.git"
+  },
+  "keywords": [
+    "ghost",
+    "ses",
+    "aws",
+    "mailgun",
+    "proxy",
+    "newsletter",
+    "email"
+  ],
+  "author": "Joseph Sellers",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/josephsellers/ghost-ses-proxy/issues"
+  },
+  "homepage": "https://github.com/josephsellers/ghost-ses-proxy#readme",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.700.0",
+    "@aws-sdk/client-sqs": "^3.700.0",
+    "better-sqlite3": "^11.0.0",
+    "busboy": "^1.6.0",
+    "express": "^4.21.2",
+    "uuid": "^11.0.0"
+  }
+}

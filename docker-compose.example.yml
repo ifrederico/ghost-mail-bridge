@@ -1,0 +1,20 @@
+services:
+  ghost-ses-proxy:
+    build: .
+    # Or use a pre-built image:
+    # image: ghcr.io/josephsellers/ghost-ses-proxy:latest
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./data:/data
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
+      - SES_CONFIGURATION_SET=${SES_CONFIGURATION_SET:-ghost-ses-proxy}
+      - PROXY_API_KEY=${PROXY_API_KEY}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SEND_CONCURRENCY=${SEND_CONCURRENCY:-10}
+    restart: unless-stopped
