@@ -1,7 +1,7 @@
 var express = require('express');
 var config = require('./lib/config');
 var authMiddleware = require('./lib/auth');
-var { db } = require('./lib/db');
+var { db, cleanupInterval } = require('./lib/db');
 var handleSendEmail = require('./lib/send-email');
 var handleGetEvents = require('./lib/events-api');
 var handleDeleteSuppression = require('./lib/suppression-api');
@@ -41,11 +41,32 @@ app.get('/v3/:domain/events/:pageToken', handleGetEvents);
 app.delete('/v3/:domain/:type/:email', handleDeleteSuppression);
 
 // --- Start ---
-app.listen(config.port, function() {
+var stopPolling;
+var server = app.listen(config.port, function() {
   console.log('ghost-ses-proxy listening on port ' + config.port);
   console.log('  Domain: ' + config.mailgunDomain);
   console.log('  Region: ' + config.awsRegion);
   console.log('  Configuration set: ' + config.sesConfigurationSet);
   console.log('  Send concurrency: ' + config.sendConcurrency);
-  startPolling();
+  stopPolling = startPolling();
 });
+
+// --- Graceful shutdown ---
+var shuttingDown = false;
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.log('Shutting down...');
+  if (stopPolling) stopPolling();
+  clearInterval(cleanupInterval);
+
+  server.close(function() {
+    db.close();
+    console.log('Shutdown complete');
+    process.exit(0);
+  });
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
