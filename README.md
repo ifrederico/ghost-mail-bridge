@@ -20,6 +20,7 @@ The proxy handles:
 - **Event tracking** — Polls SQS for SES events (delivery, open, click, bounce, complaint), maps them to Mailgun event format, stores in SQLite
 - **Suppressions** — Automatically records permanent bounces and complaints; Ghost can delete suppressions via the Mailgun API
 - **Authentication** — Validates Ghost's Mailgun Basic auth against your configured API key
+- **Input hardening** — Rejects header injection attempts and enforces request/form/recipient limits to protect service availability
 
 ## Quick start
 
@@ -188,6 +189,11 @@ All `/v3/*` endpoints require Basic auth with any username and your `PROXY_API_K
 | `LOG_LEVEL` | No | `info` | Set to `debug` for per-recipient send logs |
 | `SEND_CONCURRENCY` | No | `10` | Max parallel SES sends per batch |
 | `SUPPRESSION_RETENTION_DAYS` | No | `0` | Days to retain suppressions; `0` keeps suppressions indefinitely |
+| `MAX_REQUEST_BYTES` | No | `10485760` (10MB) | Max accepted request size based on `Content-Length` |
+| `MAX_FORM_FIELDS` | No | `2000` | Max number of multipart form fields |
+| `MAX_FIELD_SIZE_BYTES` | No | `2097152` (2MB) | Max size for each multipart field value |
+| `MAX_RECIPIENTS` | No | `50000` | Max recipients accepted in a single send request |
+| `MAX_CUSTOM_HEADERS` | No | `100` | Max number of custom `h:*` headers per request |
 
 ## Event pipeline detail
 
