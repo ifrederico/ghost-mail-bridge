@@ -4,6 +4,7 @@ Date: 2026-03-01
 
 ## 1) Duplicate event counting from SQS redelivery
 - Priority: High
+- Status: Fixed in code
 - Files: `lib/sqs-poller.js`, `lib/db.js`
 - Problem:
   - SQS Standard is at-least-once delivery.
@@ -15,6 +16,7 @@ Date: 2026-03-01
 
 ## 2) Suppressions are auto-deleted after 90 days
 - Priority: Medium-High
+- Status: Fixed in code
 - File: `lib/db.js`
 - Problem:
   - Daily cleanup deletes rows from `suppressions` older than 90 days.
@@ -24,6 +26,7 @@ Date: 2026-03-01
 
 ## 3) Unbounded `limit` on events endpoint
 - Priority: Medium
+- Status: Fixed in code
 - File: `lib/events-api.js`
 - Problem:
   - `limit` is taken from query without max cap.
@@ -33,6 +36,7 @@ Date: 2026-03-01
 
 ## 4) Optional hardening: validate event timestamp parse
 - Priority: Low
+- Status: Fixed in code
 - File: `lib/event-mapper.js`
 - Problem:
   - `new Date(iso).getTime()` can become `NaN` for malformed timestamps.

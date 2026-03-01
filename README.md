@@ -187,6 +187,7 @@ All `/v3/*` endpoints require Basic auth with any username and your `PROXY_API_K
 | `PORT` | No | `3003` | HTTP port |
 | `LOG_LEVEL` | No | `info` | Set to `debug` for per-recipient send logs |
 | `SEND_CONCURRENCY` | No | `10` | Max parallel SES sends per batch |
+| `SUPPRESSION_RETENTION_DAYS` | No | `0` | Days to retain suppressions; `0` keeps suppressions indefinitely |
 
 ## Event pipeline detail
 
@@ -220,7 +221,7 @@ The proxy uses SQLite (via `better-sqlite3`) stored at `/data/ses-proxy.db`. Fou
 - **events** — Normalized events in Mailgun format, queried by Ghost
 - **suppressions** — Permanent bounces and complaints
 
-A cleanup job runs daily, deleting records older than 90 days.
+A cleanup job runs daily. By default, send/event mapping data older than 90 days is deleted, while suppressions are retained indefinitely (unless `SUPPRESSION_RETENTION_DAYS` is set).
 
 ## Limitations
 
