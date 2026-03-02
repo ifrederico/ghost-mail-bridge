@@ -58,7 +58,7 @@ var server = app.listen(config.port, function() {
   } else if (config.ghostAdminUrl) {
     console.log('  Admin auth: Ghost session via ' + config.ghostAdminUrl);
   } else {
-    console.log('  Admin auth: none (set ADMIN_API_KEY or GHOST_ADMIN_URL to protect admin routes)');
+    console.log('  Admin auth: Ghost session via request host (default)');
   }
   stopPolling = startPolling();
 });
