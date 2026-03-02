@@ -1,8 +1,8 @@
-# ghost-ses-proxy
+# ghost-mail-bridge
 
 Send Ghost newsletter emails through **AWS SES** instead of Mailgun. This proxy impersonates the Mailgun API so Ghost doesn't know the difference — no Ghost code changes required. At scale, SES costs a fraction of Mailgun: sending 600k+ emails/month costs ~$60 on SES vs ~$800 on Mailgun.
 
-Maintained fork: `https://github.com/ifrederico/ghost-ses-proxy`
+Originally based on `https://github.com/josephsellers/ghost-ses-proxy`, now independently maintained as `https://github.com/ifrederico/ghost-mail-bridge`.
 
 ## How it works
 
@@ -10,11 +10,11 @@ Ghost only supports Mailgun for bulk newsletter sending. This proxy sits between
 
 ```
 Sending:
-  Ghost ──POST /v3/:domain/messages──▶ ghost-ses-proxy ──SES SendRawEmail──▶ AWS SES ──▶ Recipients
+  Ghost ──POST /v3/:domain/messages──▶ ghost-mail-bridge ──SES SendRawEmail──▶ AWS SES ──▶ Recipients
 
 Events (delivery, opens, clicks, bounces, complaints):
-  AWS SES ──▶ SNS Topic ──▶ SQS Queue ──▶ ghost-ses-proxy ──▶ SQLite
-  Ghost ──GET /v3/:domain/events──▶ ghost-ses-proxy ──▶ reads from SQLite
+  AWS SES ──▶ SNS Topic ──▶ SQS Queue ──▶ ghost-mail-bridge ──▶ SQLite
+  Ghost ──GET /v3/:domain/events──▶ ghost-mail-bridge ──▶ reads from SQLite
 ```
 
 The proxy handles:
@@ -29,8 +29,8 @@ The proxy handles:
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/ifrederico/ghost-ses-proxy.git
-cd ghost-ses-proxy
+git clone https://github.com/ifrederico/ghost-mail-bridge.git
+cd ghost-mail-bridge
 cp .env.example .env
 # Edit .env with your AWS credentials and settings
 ```
@@ -47,14 +47,14 @@ Or add to your existing Ghost compose stack:
 
 ```yaml
 services:
-  ghost-ses-proxy:
-    build: ./ghost-ses-proxy
+  ghost-mail-bridge:
+    build: ./ghost-mail-bridge
     ports:
       - "3003:3003"
     volumes:
-      - ./ghost-ses-proxy-data:/data
+      - ./ghost-mail-bridge-data:/data
     env_file:
-      - ./ghost-ses-proxy/.env
+      - ./ghost-mail-bridge/.env
     restart: unless-stopped
 ```
 
@@ -88,7 +88,7 @@ services:
       mail__options__auth__pass: ${SES_SMTP_PASSWORD}
 
       # Newsletter lane: Ghost's Mailgun-compatible bulk API client
-      bulkEmail__mailgun__baseUrl: http://ghost-ses-proxy:3003/v3
+      bulkEmail__mailgun__baseUrl: http://ghost-mail-bridge:3003/v3
       bulkEmail__mailgun__apiKey: ${PROXY_API_KEY}
       bulkEmail__mailgun__domain: ${MAILGUN_DOMAIN}
 ```
@@ -121,7 +121,7 @@ In the AWS Console under **SES > Verified identities**, add your sending domain.
 
 ### 2. Create an SES Configuration Set
 
-Under **SES > Configuration sets**, create one named `ghost-ses-proxy` (or whatever you set in `SES_CONFIGURATION_SET`).
+Under **SES > Configuration sets**, create one named `ghost-mail-bridge` (or whatever you set in `SES_CONFIGURATION_SET`).
 
 Add an **SNS event destination** that publishes these event types:
 - Sends
@@ -136,11 +136,11 @@ Point this destination at the SNS topic you'll create next.
 
 ### 3. Create an SNS topic
 
-Create a standard SNS topic (e.g., `ghost-ses-events`). No special configuration needed — it just bridges SES to SQS.
+Create a standard SNS topic (e.g., `ghost-mail-bridge-events`). No special configuration needed — it just bridges SES to SQS.
 
 ### 4. Create an SQS queue
 
-Create a standard SQS queue (e.g., `ghost-ses-events`). Subscribe it to the SNS topic.
+Create a standard SQS queue (e.g., `ghost-mail-bridge-events`). Subscribe it to the SNS topic.
 
 Set the queue's access policy to allow your SNS topic to send messages:
 
@@ -150,10 +150,10 @@ Set the queue's access policy to allow your SNS topic to send messages:
     "Effect": "Allow",
     "Principal": {"Service": "sns.amazonaws.com"},
     "Action": "sqs:SendMessage",
-    "Resource": "arn:aws:sqs:REGION:ACCOUNT:ghost-ses-events",
+    "Resource": "arn:aws:sqs:REGION:ACCOUNT:ghost-mail-bridge-events",
     "Condition": {
       "ArnEquals": {
-        "aws:SourceArn": "arn:aws:sns:REGION:ACCOUNT:ghost-ses-events"
+        "aws:SourceArn": "arn:aws:sns:REGION:ACCOUNT:ghost-mail-bridge-events"
       }
     }
   }]
@@ -182,7 +182,7 @@ Create an IAM user with programmatic access and attach this policy:
         "sqs:DeleteMessage",
         "sqs:GetQueueAttributes"
       ],
-      "Resource": "arn:aws:sqs:REGION:ACCOUNT:ghost-ses-events"
+      "Resource": "arn:aws:sqs:REGION:ACCOUNT:ghost-mail-bridge-events"
     }
   ]
 }
@@ -212,7 +212,7 @@ All `/v3/*` endpoints require Basic auth with any username and your `PROXY_API_K
 | `AWS_SECRET_ACCESS_KEY` | Yes | — | IAM secret key |
 | `AWS_REGION` | No | `us-east-1` | AWS region for SES and SQS |
 | `SQS_QUEUE_URL` | Yes | — | Full SQS queue URL |
-| `SES_CONFIGURATION_SET` | No | `ghost-ses-proxy` | SES Configuration Set name |
+| `SES_CONFIGURATION_SET` | No | `ghost-mail-bridge` | SES Configuration Set name |
 | `PROXY_API_KEY` | Yes | — | API key Ghost sends as `bulkEmail__mailgun__apiKey` (Mailgun-compatible auth) |
 | `MAILGUN_DOMAIN` | Yes | — | Domain Ghost sends as `bulkEmail__mailgun__domain` (Mailgun-compatible API field) |
 | `PORT` | No | `3003` | HTTP port |

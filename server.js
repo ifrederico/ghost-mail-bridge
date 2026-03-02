@@ -43,7 +43,7 @@ app.delete('/v3/:domain/:type/:email', handleDeleteSuppression);
 // --- Start ---
 var stopPolling;
 var server = app.listen(config.port, function() {
-  console.log('ghost-ses-proxy listening on port ' + config.port);
+  console.log('ghost-mail-bridge listening on port ' + config.port);
   console.log('  Domain: ' + config.mailgunDomain);
   console.log('  Region: ' + config.awsRegion);
   console.log('  Configuration set: ' + config.sesConfigurationSet);
