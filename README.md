@@ -54,13 +54,13 @@ curl http://localhost:3003/health
 
 ## Mount the dashboard
 
-Dashboard and admin API are mounted at:
-- default: `/ghost/email`
-- configurable via `ADMIN_BASE_PATH`, for example `/ghost/email`
+The dashboard is available at `/ghost/email` by default.
+If you want a different URL, set `ADMIN_BASE_PATH`.
 
-Auth options for dashboard routes:
-- `ADMIN_API_KEY` (header `x-admin-api-key` or query `apiKey`)
-- `GHOST_ADMIN_URL` (validates incoming Ghost admin session cookie server-side)
+Dashboard auth:
+- Default: validates Ghost admin session cookies and redirects browser users to `/ghost/#/signin` when not logged in
+- Optional: set `ADMIN_API_KEY` (header `x-admin-api-key` or query `apiKey`) for token auth
+- Optional: set `GHOST_ADMIN_URL` to force a specific Ghost base URL for session validation
 
 Example Nginx mapping for `https://fred.pt/ghost/email/`:
 
