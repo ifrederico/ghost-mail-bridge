@@ -53,12 +53,10 @@ var server = app.listen(config.port, function() {
   console.log('  Configuration set: ' + config.sesConfigurationSet);
   console.log('  Send concurrency: ' + config.sendConcurrency);
   console.log('  Admin dashboard path: ' + config.adminBasePath);
-  if (config.adminApiKey) {
-    console.log('  Admin auth: ADMIN_API_KEY');
-  } else if (config.ghostAdminUrl) {
+  if (config.ghostAdminUrl) {
     console.log('  Admin auth: Ghost session via ' + config.ghostAdminUrl);
   } else {
-    console.log('  Admin auth: Ghost session via request host (default)');
+    console.log('  Admin auth: DISABLED (set GHOST_ADMIN_URL)');
   }
   stopPolling = startPolling();
 });

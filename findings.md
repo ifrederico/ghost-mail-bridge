@@ -1,8 +1,8 @@
-# Security Findings (Deferred Fixes)
+# Security Findings
 
 Date: 2026-03-02
 Branch: dev
-Status: documented for later implementation
+Status: implemented in working tree
 
 ## 1) Lock Ghost session verification to fixed domain
 
@@ -14,32 +14,21 @@ Fix:
 - Set these env vars explicitly:
 
 ```env
-GHOST_ADMIN_URL=https://fred.pt
+GHOST_ADMIN_URL=http://yourdomain.com
 GHOST_ACCEPT_VERSION=v6.0
 ```
 
 Reference:
 - `lib/admin-dashboard.js` (`buildGhostBaseUrl`, `verifyGhostSession`)
 
-## 2) Stop accepting admin API key in URL query
+## 2) Remove admin API key auth mode
 
 Risk:
-- `?apiKey=...` can leak through logs/history/referrer.
+- Admin token auth creates an alternate control plane and key-management burden.
 
 Fix:
-- Only accept header auth (`x-admin-api-key`), remove query fallback.
-
-Current line pattern:
-
-```js
-var providedApiKey = req.headers['x-admin-api-key'] || req.query.apiKey || '';
-```
-
-Target:
-
-```js
-var providedApiKey = req.headers['x-admin-api-key'] || '';
-```
+- Remove `ADMIN_API_KEY` auth path entirely.
+- Enforce Ghost session verification mode only (`GHOST_ADMIN_URL` + cookie verification).
 
 Reference:
 - `lib/admin-dashboard.js` (`createAdminAuthMiddleware`)
@@ -63,5 +52,4 @@ Reference:
 ## Operational policy decision
 
 - Preferred mode for this project: Ghost admin session auth (cookie) only.
-- Keep `ADMIN_API_KEY` unset unless machine-to-machine access is explicitly needed.
-
+- Admin API key mode is intentionally not supported.

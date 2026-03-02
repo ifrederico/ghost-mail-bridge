@@ -59,10 +59,10 @@ If you want a different URL, set `ADMIN_BASE_PATH`.
 
 Dashboard auth:
 - Default: validates Ghost admin session cookies and redirects browser users to `/ghost/#/signin` when not logged in
-- Optional: set `ADMIN_API_KEY` (header `x-admin-api-key` or query `apiKey`) for token auth
-- Optional: set `GHOST_ADMIN_URL` to force a specific Ghost base URL for session validation
+- Session mode requires `GHOST_ADMIN_URL` (fixed Ghost base URL for session validation)
+- If `GHOST_ADMIN_URL` is unset, dashboard routes return `503` (misconfigured)
 
-Example Nginx mapping for `https://fred.pt/ghost/email/`:
+Example Nginx mapping for `http://yourdomain.com/ghost/email/`:
 
 ```nginx
 location /ghost/email/ {
@@ -170,8 +170,7 @@ Admin/dashboard endpoints:
 | `MAX_RECIPIENTS` | No | `50000` | max recipients per request |
 | `MAX_CUSTOM_HEADERS` | No | `100` | max custom `h:*` headers |
 | `ADMIN_BASE_PATH` | No | `/ghost/email` | dashboard path |
-| `ADMIN_API_KEY` | No | empty | dashboard API key auth |
-| `GHOST_ADMIN_URL` | No | empty | Ghost base URL for session validation |
+| `GHOST_ADMIN_URL` | Conditional | empty | required for dashboard auth; fixed Ghost base URL for session validation |
 | `GHOST_ACCEPT_VERSION` | No | `v6.0` | Ghost Admin API version header |
 
 ## Event mapping

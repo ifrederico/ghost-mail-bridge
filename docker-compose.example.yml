@@ -4,7 +4,7 @@ services:
     # Or use a pre-built image:
     # image: ghcr.io/ifrederico/ghost-mail-bridge:latest
     ports:
-      - "3003:3003"
+      - "127.0.0.1:3003:3003"
     volumes:
       - ./data:/data
     environment:
@@ -19,8 +19,7 @@ services:
       - SEND_CONCURRENCY=${SEND_CONCURRENCY:-10}
       - SUPPRESSION_RETENTION_DAYS=${SUPPRESSION_RETENTION_DAYS:-0}
       - ADMIN_BASE_PATH=${ADMIN_BASE_PATH:-/ghost/email}
-      # Optional dashboard auth (choose one)
-      - ADMIN_API_KEY=${ADMIN_API_KEY:-}
+      # Dashboard auth (cookie session verification)
       - GHOST_ADMIN_URL=${GHOST_ADMIN_URL:-}
       - GHOST_ACCEPT_VERSION=${GHOST_ACCEPT_VERSION:-v6.0}
     restart: unless-stopped
