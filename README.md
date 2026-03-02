@@ -2,6 +2,8 @@
 
 Send Ghost newsletter emails through **AWS SES** instead of Mailgun. This proxy impersonates the Mailgun API so Ghost doesn't know the difference — no Ghost code changes required. At scale, SES costs a fraction of Mailgun: sending 600k+ emails/month costs ~$60 on SES vs ~$800 on Mailgun.
 
+Maintained fork: `https://github.com/ifrederico/ghost-ses-proxy`
+
 ## How it works
 
 Ghost only supports Mailgun for bulk newsletter sending. This proxy sits between Ghost and AWS SES, translating Mailgun API calls into SES operations and feeding delivery events back in the format Ghost expects.
@@ -27,7 +29,7 @@ The proxy handles:
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/josephsellers/ghost-ses-proxy.git
+git clone https://github.com/ifrederico/ghost-ses-proxy.git
 cd ghost-ses-proxy
 cp .env.example .env
 # Edit .env with your AWS credentials and settings
@@ -63,23 +65,51 @@ curl http://localhost:3003/health
 # {"status":"ok","tables":{"message_map":0,"recipient_emails":0,"events":0,"suppressions":0}}
 ```
 
-### 4. Point Ghost at the proxy
+### 4. Configure Ghost's two email lanes
 
-Ghost stores its Mailgun configuration in the database. Update it with these SQL statements (adjust the URL and API key to match your setup):
+Ghost has two built-in email lanes. Keep both, but use SES in both:
 
-```sql
--- Set Ghost to use your proxy instead of Mailgun
-UPDATE settings SET value = '"http://your-proxy-host:3003/v3"'
-  WHERE key = 'mailgun_base_url';
+- **Transactional lane** (`mail__...`) → SES SMTP
+- **Newsletter lane** (`bulkEmail__mailgun__...`) → this proxy → SES
 
-UPDATE settings SET value = '"your-secure-api-key-here"'
-  WHERE key = 'mailgun_api_key';
+Example Ghost service environment:
 
-UPDATE settings SET value = '"example.com"'
-  WHERE key = 'mailgun_domain';
+```yaml
+services:
+  ghost:
+    environment:
+      # Transactional lane: sign-in links, password reset, staff notifications
+      mail__transport: SMTP
+      mail__from: '"Example Site" <noreply@example.com>'
+      mail__options__host: email-smtp.us-east-1.amazonaws.com
+      mail__options__port: 587
+      mail__options__secure: "false"
+      mail__options__auth__user: ${SES_SMTP_USERNAME}
+      mail__options__auth__pass: ${SES_SMTP_PASSWORD}
+
+      # Newsletter lane: Ghost's Mailgun-compatible bulk API client
+      bulkEmail__mailgun__baseUrl: http://ghost-ses-proxy:3003/v3
+      bulkEmail__mailgun__apiKey: ${PROXY_API_KEY}
+      bulkEmail__mailgun__domain: ${MAILGUN_DOMAIN}
 ```
 
-> **Note:** The values must be JSON-encoded strings (wrapped in double quotes inside single quotes). After updating, restart Ghost to pick up the changes.
+Notes:
+
+- Keep `PROXY_API_KEY` and `MAILGUN_DOMAIN` on the proxy. They are required for Ghost's Mailgun API compatibility lane.
+- Do not rewire Ghost transactional mail to a custom API endpoint if SMTP with SES works.
+- Do not collapse Ghost into one path; this setup keeps Ghost's native architecture and unifies only the provider.
+
+### 5. Cutover validation checklist
+
+Before removing old Mailgun secrets, validate all flows:
+
+- Sign-in magic link works (transactional lane via SES SMTP)
+- Password reset works (transactional lane via SES SMTP)
+- Staff invite/notification emails work (transactional lane via SES SMTP)
+- Newsletter send works (newsletter lane via proxy + SES)
+- Delivery/open/click/bounce/complaint events still appear in Ghost
+
+After all checks pass, remove legacy real-Mailgun secrets (for example `MAILGUN_API_KEY` / `mailgun_api_key`) and restart services. Keep `bulkEmail__mailgun__apiKey` + `bulkEmail__mailgun__domain` for proxy compatibility.
 
 ## AWS setup guide
 
@@ -183,8 +213,8 @@ All `/v3/*` endpoints require Basic auth with any username and your `PROXY_API_K
 | `AWS_REGION` | No | `us-east-1` | AWS region for SES and SQS |
 | `SQS_QUEUE_URL` | Yes | — | Full SQS queue URL |
 | `SES_CONFIGURATION_SET` | No | `ghost-ses-proxy` | SES Configuration Set name |
-| `PROXY_API_KEY` | Yes | — | API key for Ghost authentication |
-| `MAILGUN_DOMAIN` | Yes | — | Your sending domain |
+| `PROXY_API_KEY` | Yes | — | API key Ghost sends as `bulkEmail__mailgun__apiKey` (Mailgun-compatible auth) |
+| `MAILGUN_DOMAIN` | Yes | — | Domain Ghost sends as `bulkEmail__mailgun__domain` (Mailgun-compatible API field) |
 | `PORT` | No | `3003` | HTTP port |
 | `LOG_LEVEL` | No | `info` | Set to `debug` for per-recipient send logs |
 | `SEND_CONCURRENCY` | No | `10` | Max parallel SES sends per batch |

@@ -2,7 +2,7 @@ services:
   ghost-ses-proxy:
     build: .
     # Or use a pre-built image:
-    # image: ghcr.io/josephsellers/ghost-ses-proxy:latest
+    # image: ghcr.io/ifrederico/ghost-ses-proxy:latest
     ports:
       - "3003:3003"
     volumes:

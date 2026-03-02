@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/josephsellers/ghost-ses-proxy.git"
+    "url": "git+https://github.com/ifrederico/ghost-ses-proxy.git"
   },
   "keywords": [
     "ghost",
@@ -23,12 +23,12 @@
     "newsletter",
     "email"
   ],
-  "author": "Joseph Sellers",
+  "author": "Frederico Ribeiro",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/josephsellers/ghost-ses-proxy/issues"
+    "url": "https://github.com/ifrederico/ghost-ses-proxy/issues"
   },
-  "homepage": "https://github.com/josephsellers/ghost-ses-proxy#readme",
+  "homepage": "https://github.com/ifrederico/ghost-ses-proxy#readme",
   "dependencies": {
     "@aws-sdk/client-ses": "^3.700.0",
     "@aws-sdk/client-sqs": "^3.700.0",

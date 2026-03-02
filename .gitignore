@@ -1,3 +1,5 @@
 node_modules/
+docs/
 data/
 .env
+.DS_Store
