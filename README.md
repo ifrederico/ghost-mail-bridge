@@ -25,7 +25,7 @@ The bridge handles:
 - Suppressions: stores bounce/complaint suppressions with Mailgun-compatible delete endpoint
 - Authentication: validates Ghost Mailgun Basic auth against `PROXY_API_KEY`
 - Input hardening: enforces multipart/request/header limits
-- Admin dashboard: lightweight ops UI/API at `ADMIN_BASE_PATH` (default `/ghost-mail`)
+- Admin dashboard: lightweight ops UI/API at `ADMIN_BASE_PATH` (default `/ghost/email`)
 
 ## Quick start
 
@@ -55,7 +55,7 @@ curl http://localhost:3003/health
 ## Mount the dashboard
 
 Dashboard and admin API are mounted at:
-- default: `/ghost-mail`
+- default: `/ghost/email`
 - configurable via `ADMIN_BASE_PATH`, for example `/ghost/email`
 
 Auth options for dashboard routes:
@@ -169,7 +169,7 @@ Admin/dashboard endpoints:
 | `MAX_FIELD_SIZE_BYTES` | No | `2097152` | max multipart field size |
 | `MAX_RECIPIENTS` | No | `50000` | max recipients per request |
 | `MAX_CUSTOM_HEADERS` | No | `100` | max custom `h:*` headers |
-| `ADMIN_BASE_PATH` | No | `/ghost-mail` | dashboard path |
+| `ADMIN_BASE_PATH` | No | `/ghost/email` | dashboard path |
 | `ADMIN_API_KEY` | No | empty | dashboard API key auth |
 | `GHOST_ADMIN_URL` | No | empty | Ghost base URL for session validation |
 | `GHOST_ACCEPT_VERSION` | No | `v6.0` | Ghost Admin API version header |
