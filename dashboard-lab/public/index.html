@@ -137,28 +137,6 @@
                 </div>
               </div>
 
-              <section class="controls panel controls-panel">
-                <div class="control-cluster">
-                  <div class="control-row">
-                    <label for="preset">Scenario</label>
-                    <select id="preset"></select>
-                  </div>
-                  <div class="control-row">
-                    <label for="interval">Refresh</label>
-                    <select id="interval">
-                      <option value="0">Manual</option>
-                      <option value="3000">3s</option>
-                      <option value="7000" selected>7s</option>
-                      <option value="15000">15s</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="control-cluster control-cluster-right">
-                  <button id="refresh" type="button" class="ghost-btn ghost-btn-outline">Reload now</button>
-                  <span id="status" class="control-status"></span>
-                </div>
-              </section>
-
               <section class="tab-panel active" data-tab-panel="overview">
                 <section class="metrics" id="overview-cards"></section>
 
@@ -193,7 +171,7 @@
                 <section class="metrics" id="delivery-cards"></section>
                 <section class="panel">
                   <div class="panel-head">
-                    <span>Hourly timeline (mock)</span>
+                    <span>Hourly timeline</span>
                     <span class="panel-meta">Last 24 hours</span>
                   </div>
                   <table>
@@ -283,7 +261,6 @@
                         <th>Type</th>
                         <th>Reason</th>
                         <th>Created</th>
-                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody id="suppression-rows"></tbody>
@@ -377,6 +354,11 @@
     </div>
   </nav>
 
+  <script>
+    window.__GMB_RUNTIME__ = (typeof __GMB_RUNTIME__ !== 'undefined')
+      ? __GMB_RUNTIME__
+      : { basePath: '', siteDomain: '' };
+  </script>
   <script src="./app.js" defer></script>
 </body>
 </html>

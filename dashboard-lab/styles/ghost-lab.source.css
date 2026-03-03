@@ -659,80 +659,12 @@ a {
   transition: box-shadow 0.16s ease, background 0.16s ease;
 }
 
-.controls-panel {
-  margin-top: 0;
-  margin-bottom: 18px;
-}
-
-.controls-panel.panel {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 0;
-}
-
 .tab-panel {
   display: none;
 }
 
 .tab-panel.active {
   display: block;
-}
-
-.controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.control-cluster {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.control-cluster-right {
-  margin-left: auto;
-}
-
-.control-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.control-row label {
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.controls select {
-  height: 34px;
-  border: 1px solid hsl(var(--input));
-  border-radius: 8px;
-  background: transparent;
-  color: hsl(var(--foreground));
-  padding: 0 10px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.controls select:hover {
-  background: hsl(var(--accent));
-}
-
-.controls select:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 1px hsla(var(--ring), 0.45);
-}
-
-.control-status {
-  color: hsl(var(--muted-foreground));
-  font-size: 13px;
 }
 
 .metrics {
@@ -1155,14 +1087,6 @@ tbody tr:hover {
     grid-template-areas:
       "navigation"
       "actions";
-  }
-
-  .controls {
-    justify-content: flex-start;
-  }
-
-  .control-cluster-right {
-    margin-left: 0;
   }
 
   .metrics {

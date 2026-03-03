@@ -1,8 +1,6 @@
 (function () {
-  var presetEl = document.getElementById('preset');
-  var intervalEl = document.getElementById('interval');
-  var refreshBtn = document.getElementById('refresh');
-  var statusEl = document.getElementById('status');
+  var runtimeConfig = window.__GMB_RUNTIME__ || {};
+  var siteDomainEl = document.querySelector('.muted-link');
 
   var tabControls = Array.prototype.slice.call(document.querySelectorAll('[data-tab-target]'));
   var tabPanels = Array.prototype.slice.call(document.querySelectorAll('[data-tab-panel]'));
@@ -33,6 +31,7 @@
   var healthCheckRowsEl = document.getElementById('health-check-rows');
 
   var timer = null;
+  var REFRESH_MS = 15000;
   var state = {
     basePath: '',
     preset: 'healthy',
@@ -46,6 +45,9 @@
   };
 
   function getBasePath() {
+    if (runtimeConfig.basePath) {
+      return String(runtimeConfig.basePath);
+    }
     var path = window.location.pathname;
     if (path.endsWith('/index.html')) path = path.slice(0, -11);
     if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
@@ -71,8 +73,11 @@
     return date.toLocaleString();
   }
 
-  function setStatus(text) {
-    statusEl.textContent = text;
+  function applyRuntimeSiteDomain() {
+    if (!siteDomainEl) return;
+    var domain = runtimeConfig.siteDomain;
+    if (!domain) return;
+    siteDomainEl.textContent = String(domain);
   }
 
   function normalizeTab(tab) {
@@ -500,9 +505,8 @@
         '<td>' + esc(row.type) + '</td>' +
         '<td>' + esc(row.reason || '-') + '</td>' +
         '<td>' + esc(fmtIso(row.created_at)) + '</td>' +
-        '<td><button type="button" class="table-action-btn" data-remove-email="' + esc(row.email) + '" data-remove-type="' + esc(row.type) + '">Remove</button></td>' +
         '</tr>';
-    }).join('') || '<tr><td colspan="5">No suppressions found.</td></tr>';
+    }).join('') || '<tr><td colspan="4">No suppressions found.</td></tr>';
   }
 
   function buildIntegrationChecks() {
@@ -570,7 +574,7 @@
     healthStatusPillEl.textContent = statusValue;
 
     var rows = [
-      ['Queue depth', queueDepth === null ? 'Mock data' : String(queueDepth)],
+      ['Queue depth', queueDepth === null ? '-' : String(queueDepth)],
       ['Last poll update', lastUpdate ? fmtIso(lastUpdate) : '-'],
       ['Last error', lastError]
     ];
@@ -597,55 +601,18 @@
     renderHealth();
   }
 
-  function updateAutoRefresh() {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
-    }
-
-    var intervalMs = parseInt(intervalEl.value, 10);
-    if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
-      setStatus('manual mode');
-      return;
-    }
-
-    timer = setInterval(function () {
-      load();
-    }, intervalMs);
-    setStatus('auto refresh every ' + Math.round(intervalMs / 1000) + 's');
-  }
-
-  async function loadPresets() {
-    var response = await fetch(state.basePath + '/api/presets');
-    if (!response.ok) {
-      throw new Error('Failed to load presets');
-    }
-
-    var data = await response.json();
-    var options = data.items || [];
-
-    presetEl.innerHTML = options.map(function (row) {
-      return '<option value="' + esc(row.id) + '">' + esc(row.label) + '</option>';
-    }).join('');
-
-    if (!options.length) {
-      presetEl.innerHTML = '<option value="healthy">Healthy traffic</option>';
-    }
-  }
-
   async function load() {
     var query = '?preset=' + encodeURIComponent(state.preset);
 
     try {
-      setStatus('loading...');
-
       var responses = await Promise.all([
         fetch(state.basePath + '/api/summary' + query),
         fetch(state.basePath + '/api/health' + query),
-        fetch(state.basePath + '/api/failures' + query + '&limit=80')
+        fetch(state.basePath + '/api/failures' + query + '&limit=80'),
+        fetch(state.basePath + '/api/suppressions?limit=500')
       ]);
 
-      if (!responses[0].ok || !responses[1].ok || !responses[2].ok) {
+      if (!responses[0].ok || !responses[1].ok || !responses[2].ok || !responses[3].ok) {
         throw new Error('Dashboard API request failed');
       }
 
@@ -655,45 +622,23 @@
       var failurePayload = await responses[2].json();
       state.failures = failurePayload.items || [];
 
-      var suppressionData = buildSuppressions(state.summary, state.preset);
-      state.suppressionTotals = suppressionData.totals;
-      state.suppressions = suppressionData.items;
+      var suppressionPayload = await responses[3].json();
+      state.suppressionTotals = state.summary.suppressions || { bounces: 0, complaints: 0, unsubscribes: 0 };
+      state.suppressions = suppressionPayload.items || [];
       state.delivery = buildDelivery(state.summary, state.preset);
 
       renderAll();
-      setStatus('loaded ' + new Date().toLocaleTimeString());
     } catch (err) {
       overviewCardsEl.innerHTML = metric('Error', 'Failed');
       failureRowsEl.innerHTML = '<tr><td colspan="5">Failed to load</td></tr>';
-      suppressionRowsEl.innerHTML = '<tr><td colspan="5">Failed to load</td></tr>';
+      suppressionRowsEl.innerHTML = '<tr><td colspan="4">Failed to load</td></tr>';
       healthMetaEl.textContent = 'error';
       healthStatusPillEl.className = 'status-pill danger';
       healthStatusPillEl.textContent = 'error';
       healthRowsEl.innerHTML = '<tr><td colspan="2">Failed to load health signals</td></tr>';
       healthCheckRowsEl.innerHTML = '<tr><td colspan="3">Failed to load checks</td></tr>';
-      setStatus('error');
     }
   }
-
-  suppressionRowsEl.addEventListener('click', function (event) {
-    var target = event.target;
-    if (!target || !target.classList.contains('table-action-btn')) return;
-
-    var email = target.getAttribute('data-remove-email') || '';
-    var type = target.getAttribute('data-remove-type') || '';
-    if (!email || !type) return;
-
-    state.suppressions = state.suppressions.filter(function (row) {
-      return !(row.email === email && row.type === type);
-    });
-
-    if (typeof state.suppressionTotals[type] === 'number' && state.suppressionTotals[type] > 0) {
-      state.suppressionTotals[type] -= 1;
-    }
-
-    renderSuppressions();
-    setStatus('suppression removed (mock)');
-  });
 
   failureFilterEl.addEventListener('change', renderFailures);
   suppressionFilterEl.addEventListener('change', renderSuppressions);
@@ -720,20 +665,11 @@
     setActiveTab(window.location.hash, false);
   });
 
-  presetEl.addEventListener('change', function () {
-    state.preset = presetEl.value || 'healthy';
-    load();
-  });
-
-  intervalEl.addEventListener('change', updateAutoRefresh);
-  refreshBtn.addEventListener('click', load);
-
   (async function bootstrap() {
     state.basePath = getBasePath();
-    await loadPresets();
-    state.preset = presetEl.value || 'healthy';
+    applyRuntimeSiteDomain();
     setActiveTab(window.location.hash || 'overview', false);
-    updateAutoRefresh();
-    load();
+    await load();
+    timer = setInterval(load, REFRESH_MS);
   })();
 })();
