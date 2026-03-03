@@ -65,6 +65,7 @@ cp .env.example .env
 # Set GHOST_ADMIN_URL if you want dashboard auth/session flow locally
 # Optional for dashboard-only styling work:
 # DISABLE_SQS_POLLER=1
+# DISABLE_ADMIN_AUTH=1
 
 npm install
 npm run dev
@@ -74,6 +75,7 @@ Notes:
 - `npm run dev` loads `.env` automatically via Node's `--env-file=.env`.
 - Default SQLite path is `/data/ses-proxy.db` when `/data` is writable (container/VPS).
 - If `/data` is not writable (common on macOS), it automatically falls back to `./data/ses-proxy.db`.
+- For styling-only local work (no local Ghost session), set `DISABLE_ADMIN_AUTH=1` and open `/ghost/email/?demo=1`.
 
 ## Mount the dashboard
 
