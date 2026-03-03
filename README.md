@@ -63,15 +63,17 @@ cp .env.example .env
 # Fill required env vars in .env:
 # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SQS_QUEUE_URL, PROXY_API_KEY, MAILGUN_DOMAIN
 # Set GHOST_ADMIN_URL if you want dashboard auth/session flow locally
+# Optional for dashboard-only styling work:
+# DISABLE_SQS_POLLER=1
 
 npm install
-mkdir -p /data
-node --watch server.js
+npm run dev
 ```
 
 Notes:
-- SQLite file is stored at `/data/ses-proxy.db`.
-- If `/data` is not writable on your machine, create it with proper ownership.
+- `npm run dev` loads `.env` automatically via Node's `--env-file=.env`.
+- Default SQLite path is `/data/ses-proxy.db` when `/data` is writable (container/VPS).
+- If `/data` is not writable (common on macOS), it automatically falls back to `./data/ses-proxy.db`.
 
 ## Mount the dashboard
 
@@ -220,7 +222,10 @@ Admin/dashboard endpoints:
 
 ## Storage
 
-SQLite path: `/data/ses-proxy.db`
+SQLite path:
+- default container/VPS: `/data/ses-proxy.db`
+- local fallback when `/data` is not writable: `./data/ses-proxy.db`
+- optional override: set `DB_PATH`
 
 Tables:
 - `message_map`

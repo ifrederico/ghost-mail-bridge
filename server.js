@@ -58,7 +58,11 @@ var server = app.listen(config.port, function() {
   } else {
     console.log('  Admin auth: DISABLED (set GHOST_ADMIN_URL)');
   }
-  stopPolling = startPolling();
+  if (config.disableSqsPoller) {
+    console.log('  SQS poller: DISABLED (DISABLE_SQS_POLLER=1)');
+  } else {
+    stopPolling = startPolling();
+  }
 });
 
 // --- Graceful shutdown ---

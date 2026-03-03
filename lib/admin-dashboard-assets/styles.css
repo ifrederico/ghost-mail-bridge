@@ -109,7 +109,7 @@ a {
 .brand {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
   padding: 6px 32px;
   color: hsl(var(--foreground));
   font-size: 18px;
@@ -118,11 +118,16 @@ a {
   font-weight: 600;
 }
 
-.brand-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: hsl(var(--foreground));
+.brand-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.9;
+  opacity: 0.9;
+}
+
+.brand > span {
+  white-space: nowrap;
   flex: 0 0 auto;
 }
 
