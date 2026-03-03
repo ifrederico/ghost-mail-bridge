@@ -7,7 +7,6 @@ COPY package.json .
 RUN npm install --production
 COPY server.js .
 COPY lib/ lib/
-COPY dashboard-lab/public/ dashboard-lab/public/
 
 RUN mkdir -p /data
 

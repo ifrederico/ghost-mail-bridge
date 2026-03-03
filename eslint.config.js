@@ -6,7 +6,8 @@ module.exports = [
     ignores: [
       'docs/**',
       'data/**',
-      'node_modules/**'
+      'node_modules/**',
+      'lib/admin-dashboard-assets/**'
     ]
   },
   {

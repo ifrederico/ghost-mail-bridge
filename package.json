@@ -5,9 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "lint": "eslint .",
-    "dashboard:lab:css": "node dashboard-lab/scripts/build-css.js",
-    "dashboard:lab": "npm run dashboard:lab:css && node dashboard-lab/server.js"
+    "lint": "eslint ."
   },
   "engines": {
     "node": ">=20"
