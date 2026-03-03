@@ -20,19 +20,17 @@
   var failureMetaEl = document.getElementById('failure-meta');
   var failureReasonRowsEl = document.getElementById('failure-reason-rows');
   var failureRowsEl = document.getElementById('failure-rows');
+  var failureCardsEl = document.getElementById('failure-cards');
 
   var suppressionFilterEl = document.getElementById('suppression-filter');
   var suppressionMetaEl = document.getElementById('suppression-meta');
   var suppressionCardsEl = document.getElementById('suppression-cards');
   var suppressionRowsEl = document.getElementById('suppression-rows');
 
-  var queueMetaEl = document.getElementById('queue-meta');
-  var queueRowsEl = document.getElementById('queue-rows');
   var healthMetaEl = document.getElementById('health-meta');
-  var healthJsonEl = document.getElementById('health-json');
-
-  var settingsRowsEl = document.getElementById('settings-rows');
-  var settingsCheckRowsEl = document.getElementById('settings-check-rows');
+  var healthStatusPillEl = document.getElementById('health-status-pill');
+  var healthRowsEl = document.getElementById('health-rows');
+  var healthCheckRowsEl = document.getElementById('health-check-rows');
 
   var timer = null;
   var state = {
@@ -44,8 +42,7 @@
     failures: [],
     delivery: null,
     suppressionTotals: { bounces: 0, complaints: 0, unsubscribes: 0 },
-    suppressions: [],
-    settings: { values: [], checks: [] }
+    suppressions: []
   };
 
   function getBasePath() {
@@ -264,49 +261,6 @@
     };
   }
 
-  function buildSettings(summary, health, preset) {
-    var deliveryRate = summary.sent_24h ? summary.delivered_24h / summary.sent_24h : 0;
-    var complaintRate = summary.delivered_24h ? summary.complained_24h / summary.delivered_24h : 0;
-
-    return {
-      values: [
-        { key: 'Mode', value: 'Dashboard lab (mock data)' },
-        { key: 'Scenario preset', value: preset },
-        { key: 'Base path', value: state.basePath },
-        { key: 'Polling interval', value: intervalEl.value === '0' ? 'manual' : (Math.round(parseInt(intervalEl.value, 10) / 1000) + ' seconds') },
-        { key: 'Service', value: health.service || 'ghost-mail-bridge' },
-        { key: 'Service status', value: health.status || 'unknown' }
-      ],
-      checks: [
-        {
-          name: 'Service healthy',
-          status: health.status === 'ok' ? 'ok' : 'warn',
-          detail: health.status === 'ok' ? 'All core signals are green' : 'Service reports degraded state'
-        },
-        {
-          name: 'Poller running',
-          status: health.poller && health.poller.isRunning ? 'ok' : 'warn',
-          detail: health.poller && health.poller.isRunning ? 'Event poller loop active' : 'Poller loop is not running'
-        },
-        {
-          name: 'Delivery rate',
-          status: deliveryRate >= 0.95 ? 'ok' : 'warn',
-          detail: Math.round(deliveryRate * 1000) / 10 + '% of sent emails were delivered'
-        },
-        {
-          name: 'Complaint rate',
-          status: complaintRate <= 0.002 ? 'ok' : 'warn',
-          detail: Math.round(complaintRate * 1000) / 10 + '% of delivered emails were complaints'
-        },
-        {
-          name: 'Recent poller errors',
-          status: health.poller && health.poller.lastErrorMessage ? 'warn' : 'ok',
-          detail: health.poller && health.poller.lastErrorMessage ? health.poller.lastErrorMessage : 'No recent poller errors'
-        }
-      ]
-    };
-  }
-
   function metricClass(label, value) {
     if (label.indexOf('Failed') === 0 || label.indexOf('Complained') === 0 || label.indexOf('Failure rate') === 0) {
       return value > 0 ? 'danger' : 'ok';
@@ -368,17 +322,18 @@
       '</div>';
   }
 
-  function metric(label, value, suffix) {
+  function metric(label, value, suffix, viewTarget) {
     var cls = metricClass(label, value);
     var tone = metricTone(label);
     var display = suffix ? (value + suffix) : value;
     var classes = ['metric', tone];
+    var actionAttr = viewTarget ? ' data-view-target="' + esc(viewTarget) + '"' : '';
     if (cls) classes.push('metric-' + cls);
 
     return '<article class="' + classes.join(' ') + '">' +
       '<div class="metric-head">' +
       '<div class="metric-label"><span class="metric-dot"></span>' + esc(label) + '</div>' +
-      '<button class="metric-action" type="button">View more</button>' +
+      '<button class="metric-action" type="button"' + actionAttr + '>View more</button>' +
       '</div>' +
       '<div class="metric-value ' + cls + '">' + esc(display) + '</div>' +
       '<div class="metric-meta">Last 24 hours</div>' +
@@ -394,14 +349,12 @@
   function renderOverview() {
     var summary = state.summary;
     var health = state.health;
+    var delivery = state.delivery || buildDelivery(summary, state.preset);
 
     overviewCardsEl.innerHTML = [
-      metric('Sent (24h)', summary.sent_24h),
-      metric('Delivered (24h)', summary.delivered_24h),
-      metric('Opened (24h)', summary.opened_24h),
-      metric('Clicked (24h)', summary.clicked_24h),
-      metric('Failed (24h)', summary.failed_24h),
-      metric('Complained (24h)', summary.complained_24h)
+      metric('Sent (24h)', summary.sent_24h, null, 'delivery'),
+      metric('Open rate', delivery.rates.open, '%', 'delivery'),
+      metric('Failure rate', delivery.rates.failure, '%', 'failures')
     ].join('');
 
     var alerts = [];
@@ -445,16 +398,12 @@
   }
 
   function renderDelivery() {
-    var summary = state.summary;
     var delivery = state.delivery;
 
     deliveryCardsEl.innerHTML = [
       metric('Delivery rate', delivery.rates.delivery, '%'),
       metric('Open rate', delivery.rates.open, '%'),
-      metric('Click rate', delivery.rates.click, '%'),
-      metric('Failure rate', delivery.rates.failure, '%'),
-      metric('Complaint rate', delivery.rates.complaint, '%'),
-      metric('Sent (24h)', summary.sent_24h)
+      metric('Click rate', delivery.rates.click, '%')
     ].join('');
 
     var maxSent = 1;
@@ -487,8 +436,14 @@
   }
 
   function renderFailures() {
+    var delivery = state.delivery || { rates: { failure: 0, complaint: 0 } };
     var rows = filteredFailures();
     var reasonCounts = {};
+
+    failureCardsEl.innerHTML = [
+      metric('Failure rate', delivery.rates.failure, '%'),
+      metric('Complaint rate', delivery.rates.complaint, '%')
+    ].join('');
 
     rows.forEach(function (row) {
       var key = row.reason || row.enhanced_code || 'Unknown';
@@ -550,39 +505,82 @@
     }).join('') || '<tr><td colspan="5">No suppressions found.</td></tr>';
   }
 
-  function renderQueue() {
+  function buildIntegrationChecks() {
+    var health = state.health || {};
+    var poller = health.poller || {};
+    var delivery = state.delivery || { rates: { delivery: 0, complaint: 0 } };
+    var deliveryRate = delivery.rates.delivery;
+    var complaintRate = delivery.rates.complaint;
+
+    return [
+      {
+        name: 'Service healthy',
+        status: health.status === 'ok' ? 'ok' : 'warn',
+        detail: health.status === 'ok' ? 'All core signals are green' : 'Service reports degraded state'
+      },
+      {
+        name: 'Poller running',
+        status: poller.isRunning ? 'ok' : 'warn',
+        detail: poller.isRunning ? 'Event poller loop active' : 'Poller loop is not running'
+      },
+      {
+        name: 'Delivery rate',
+        status: deliveryRate >= 95 ? 'ok' : 'warn',
+        detail: String(Math.round(deliveryRate * 10) / 10) + '% of sent emails were delivered'
+      },
+      {
+        name: 'Complaint rate',
+        status: complaintRate <= 0.2 ? 'ok' : 'warn',
+        detail: String(Math.round(complaintRate * 10) / 10) + '% of delivered emails were complaints'
+      },
+      {
+        name: 'Recent poller errors',
+        status: poller.lastErrorMessage ? 'warn' : 'ok',
+        detail: poller.lastErrorMessage || 'No recent poller errors'
+      }
+    ];
+  }
+
+  function renderHealth() {
     var health = state.health;
     var poller = health.poller || {};
+    var statusValue = String(health.status || 'unknown').toLowerCase();
+    var statusClass = 'warn';
+    var queueDepth = null;
+    var lastUpdate = poller.lastPollFinishedAt || poller.lastPollStartedAt || null;
+    var lastError = poller.lastErrorMessage || 'None';
 
-    queueMetaEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
     healthMetaEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
 
+    if (statusValue === 'ok') {
+      statusClass = 'ok';
+    } else if (statusValue === 'error' || statusValue === 'failed' || statusValue === 'down') {
+      statusClass = 'danger';
+    }
+
+    if (typeof poller.queueDepth === 'number') {
+      queueDepth = poller.queueDepth;
+    } else if (typeof poller.approxQueueDepth === 'number') {
+      queueDepth = poller.approxQueueDepth;
+    } else if (typeof health.queueDepth === 'number') {
+      queueDepth = health.queueDepth;
+    }
+
+    healthStatusPillEl.className = 'status-pill ' + statusClass;
+    healthStatusPillEl.textContent = statusValue;
+
     var rows = [
-      ['Status', health.status || '-'],
-      ['Poller running', poller.isRunning ? 'Yes' : 'No'],
-      ['Last poll started', poller.lastPollStartedAt || '-'],
-      ['Last poll finished', poller.lastPollFinishedAt || '-'],
-      ['Last error at', poller.lastErrorAt || '-'],
-      ['Last error message', poller.lastErrorMessage || '-'],
-      ['Messages received (total)', poller.totalMessagesReceived === undefined ? '-' : String(poller.totalMessagesReceived)],
-      ['Events stored (total)', poller.totalEventsStored === undefined ? '-' : String(poller.totalEventsStored)],
-      ['Queue depth', 'Mock data'],
-      ['DLQ depth', 'Mock data']
+      ['Queue depth', queueDepth === null ? 'Mock data' : String(queueDepth)],
+      ['Last poll update', lastUpdate ? fmtIso(lastUpdate) : '-'],
+      ['Last error', lastError]
     ];
 
-    queueRowsEl.innerHTML = rows.map(function (row) {
+    healthRowsEl.innerHTML = rows.map(function (row) {
       return '<tr><td>' + esc(row[0]) + '</td><td class="mono">' + esc(row[1]) + '</td></tr>';
     }).join('');
 
-    healthJsonEl.textContent = JSON.stringify(health, null, 2);
-  }
-
-  function renderSettings() {
-    settingsRowsEl.innerHTML = state.settings.values.map(function (row) {
-      return '<tr><td>' + esc(row.key) + '</td><td class="mono">' + esc(row.value) + '</td></tr>';
-    }).join('');
-
-    settingsCheckRowsEl.innerHTML = state.settings.checks.map(function (row) {
+    var checks = buildIntegrationChecks();
+    healthCheckRowsEl.innerHTML = checks.map(function (row) {
       return '<tr>' +
         '<td>' + esc(row.name) + '</td>' +
         '<td><span class="status-pill ' + esc(row.status) + '">' + esc(row.status) + '</span></td>' +
@@ -596,8 +594,7 @@
     renderDelivery();
     renderFailures();
     renderSuppressions();
-    renderQueue();
-    renderSettings();
+    renderHealth();
   }
 
   function updateAutoRefresh() {
@@ -662,17 +659,18 @@
       state.suppressionTotals = suppressionData.totals;
       state.suppressions = suppressionData.items;
       state.delivery = buildDelivery(state.summary, state.preset);
-      state.settings = buildSettings(state.summary, state.health, state.preset);
 
       renderAll();
       setStatus('loaded ' + new Date().toLocaleTimeString());
     } catch (err) {
       overviewCardsEl.innerHTML = metric('Error', 'Failed');
-      healthJsonEl.textContent = String(err && err.message ? err.message : err);
       failureRowsEl.innerHTML = '<tr><td colspan="5">Failed to load</td></tr>';
       suppressionRowsEl.innerHTML = '<tr><td colspan="5">Failed to load</td></tr>';
-      settingsRowsEl.innerHTML = '<tr><td colspan="2">Failed to load</td></tr>';
-      settingsCheckRowsEl.innerHTML = '<tr><td colspan="3">Failed to load</td></tr>';
+      healthMetaEl.textContent = 'error';
+      healthStatusPillEl.className = 'status-pill danger';
+      healthStatusPillEl.textContent = 'error';
+      healthRowsEl.innerHTML = '<tr><td colspan="2">Failed to load health signals</td></tr>';
+      healthCheckRowsEl.innerHTML = '<tr><td colspan="3">Failed to load checks</td></tr>';
       setStatus('error');
     }
   }
@@ -699,6 +697,17 @@
 
   failureFilterEl.addEventListener('change', renderFailures);
   suppressionFilterEl.addEventListener('change', renderSuppressions);
+
+  overviewCardsEl.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+
+    var actionBtn = target.closest('.metric-action[data-view-target]');
+    if (!actionBtn) return;
+
+    event.preventDefault();
+    setActiveTab(actionBtn.getAttribute('data-view-target'), true);
+  });
 
   tabControls.forEach(function (control) {
     control.addEventListener('click', function (event) {

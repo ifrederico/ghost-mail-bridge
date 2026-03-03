@@ -38,12 +38,18 @@
                   </a>
                 </li>
                 <li data-sidebar="menu-item">
-                  <a data-sidebar="menu-button" data-active="true" href="/ghost/email">
+                  <a data-sidebar="menu-button" data-tab-target="overview" href="#overview">
                     <svg viewBox="-0.75 -0.75 24 24" xmlns="http://www.w3.org/2000/svg" height="24" width="24" aria-hidden="true">
                       <path d="m1.40625 4.453125 19.6875 0 0 14.0625 -19.6875 0Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
                       <path d="m20.7759375 4.96875 -7.635 5.8725000000000005a3.10125 3.10125 0 0 1 -3.781875 0L1.7240625 4.96875" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
                     </svg>
                     <span>Email delivery</span>
+                  </a>
+                </li>
+                <li data-sidebar="menu-item">
+                  <a data-sidebar="menu-button" data-tab-target="health" href="#health">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart-pulse-icon lucide-heart-pulse" aria-hidden="true"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/><path d="M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/></svg>
+                    <span>Health</span>
                   </a>
                 </li>
                 <li data-sidebar="menu-item">
@@ -89,26 +95,33 @@
               <header class="page-header" id="overview">
                 <div class="page-header-row">
                   <h1>Email delivery</h1>
-                </div>
-                <div class="page-header-meta">
-                  <span class="meta-site">
-                    <span class="meta-globe" aria-hidden="true"></span>
-                    <span class="muted-link">yourdomain.com</span>
-                  </span>
-                  <span class="meta-sep">|</span>
-                  <span>0 online</span>
-                  <span class="meta-dot"></span>
+                  <div class="page-header-meta">
+                    <span class="meta-site">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="meta-globe" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
+                      <span class="muted-link">yourdomain.com</span>
+                    </span>
+                  </div>
                 </div>
               </header>
 
               <div class="page-navbar">
                 <div class="page-tabs">
-                  <button type="button" class="tab-btn active" data-tab-target="overview">Overview</button>
-                  <button type="button" class="tab-btn" data-tab-target="delivery">Delivery</button>
-                  <button type="button" class="tab-btn" data-tab-target="failures">Failures &amp; complaints</button>
-                  <button type="button" class="tab-btn" data-tab-target="suppressions">Suppressions</button>
-                  <button type="button" class="tab-btn" data-tab-target="queue">Queue &amp; health</button>
-                  <button type="button" class="tab-btn" data-tab-target="settings">Settings</button>
+                  <button type="button" class="tab-btn active" data-tab-target="overview">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gauge-icon lucide-gauge" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+                    <span>Overview</span>
+                  </button>
+                  <button type="button" class="tab-btn" data-tab-target="delivery">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mail-check-icon lucide-mail-check" aria-hidden="true"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="m16 19 2 2 4-4"/></svg>
+                    <span>Delivery</span>
+                  </button>
+                  <button type="button" class="tab-btn" data-tab-target="failures">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-skull-icon lucide-skull" aria-hidden="true"><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/></svg>
+                    <span>Failures &amp; complaints</span>
+                  </button>
+                  <button type="button" class="tab-btn" data-tab-target="suppressions">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-fire-extinguisher-icon lucide-fire-extinguisher" aria-hidden="true"><path d="M15 6.5V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3.5"/><path d="M9 18h8"/><path d="M18 3h-3"/><path d="M11 3a6 6 0 0 0-6 6v11"/><path d="M5 13h4"/><path d="M17 10a4 4 0 0 0-8 0v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2Z"/></svg>
+                    <span>Suppressions</span>
+                  </button>
                 </div>
                 <div class="page-actions">
                   <button type="button" class="ghost-btn ghost-btn-outline ghost-btn-dropdown">
@@ -202,6 +215,8 @@
               </section>
 
               <section class="tab-panel" data-tab-panel="failures">
+                <section class="metrics" id="failure-cards"></section>
+
                 <section class="panel">
                   <div class="panel-head">
                     <span>Failure reasons</span>
@@ -276,45 +291,32 @@
                 </section>
               </section>
 
-              <section class="tab-panel" data-tab-panel="queue">
+              <section class="tab-panel" data-tab-panel="health">
                 <section class="panel">
                   <div class="panel-head">
-                    <span>Queue and poller state</span>
-                    <span id="queue-meta" class="panel-meta"></span>
+                    <span>Health</span>
+                    <span id="health-meta" class="panel-meta"></span>
                   </div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Metric</th>
-                        <th>Value</th>
-                      </tr>
-                    </thead>
-                    <tbody id="queue-rows"></tbody>
-                  </table>
+                  <ul class="status-list">
+                    <li class="status-item">
+                      <span>System status</span>
+                      <span id="health-status-pill" class="status-pill">unknown</span>
+                    </li>
+                  </ul>
                 </section>
 
                 <section class="panel">
                   <div class="panel-head">
-                    <span>System health payload</span>
-                    <span id="health-meta" class="panel-meta mono"></span>
-                  </div>
-                  <pre id="health-json" class="health-json mono"></pre>
-                </section>
-              </section>
-
-              <section class="tab-panel" data-tab-panel="settings">
-                <section class="panel">
-                  <div class="panel-head">
-                    <span>Runtime settings</span>
+                    <span>Core signals</span>
                   </div>
                   <table>
                     <thead>
                       <tr>
-                        <th>Setting</th>
+                        <th>Signal</th>
                         <th>Value</th>
                       </tr>
                     </thead>
-                    <tbody id="settings-rows"></tbody>
+                    <tbody id="health-rows"></tbody>
                   </table>
                 </section>
 
@@ -330,7 +332,7 @@
                         <th>Detail</th>
                       </tr>
                     </thead>
-                    <tbody id="settings-check-rows"></tbody>
+                    <tbody id="health-check-rows"></tbody>
                   </table>
                 </section>
               </section>
@@ -365,12 +367,12 @@
         </svg>
         <span class="sr-only">Failures and complaints</span>
       </a>
-      <a class="mobile-bottom-nav-item" href="#settings" data-tab-target="settings" aria-label="Settings">
+      <a class="mobile-bottom-nav-item" href="#health" data-tab-target="health" aria-label="Health">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.66 1.66 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1 -2.83 0l-.06-.06a1.66 1.66 0 0 0 -1.82-.33 1.66 1.66 0 0 0 -1 1.51V21a2 2 0 0 1 -2 2 2 2 0 0 1 -2 -2v-.09a1.66 1.66 0 0 0 -1 -1.51 1.66 1.66 0 0 0 -1.82.33l-.06.06a2 2 0 0 1 -2.83 0 2 2 0 0 1 0 -2.83l.06-.06a1.66 1.66 0 0 0 .33 -1.82 1.66 1.66 0 0 0 -1.51 -1H3a2 2 0 0 1 -2 -2 2 2 0 0 1 2 -2h.09a1.66 1.66 0 0 0 1.51 -1 1.66 1.66 0 0 0 -.33 -1.82l-.06-.06a2 2 0 0 1 0 -2.83 2 2 0 0 1 2.83 0l.06.06a1.66 1.66 0 0 0 1.82.33h.02A1.66 1.66 0 0 0 10 3.09V3a2 2 0 0 1 2 -2 2 2 0 0 1 2 2v.09a1.66 1.66 0 0 0 1 1.51h.02a1.66 1.66 0 0 0 1.82 -.33l.06 -.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.66 1.66 0 0 0 -.33 1.82v.02A1.66 1.66 0 0 0 20.91 10H21a2 2 0 0 1 2 2 2 2 0 0 1 -2 2h-.09a1.66 1.66 0 0 0 -1.51 1z"></path>
+          <path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"></path>
+          <path d="M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"></path>
         </svg>
-        <span class="sr-only">Settings</span>
+        <span class="sr-only">Health</span>
       </a>
     </div>
   </nav>
