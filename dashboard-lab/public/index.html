@@ -20,15 +20,21 @@
           <div data-sidebar="group">
             <div data-sidebar="group-content">
               <ul data-sidebar="menu">
-                <li data-sidebar="menu-item">
-                  <a data-sidebar="menu-button" href="/ghost/">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="-0.75 -0.75 24 24" height="24" width="24" aria-hidden="true">
-                      <g>
-                        <path d="M12.01875 13.603125 14.399999999999999 11.25l1.65 0.440625a1.4625000000000001 1.4625000000000001 0 0 0 1.415625 -0.440625 1.4812500000000002 1.4812500000000002 0 0 0 0.346875 -1.396875l-0.440625 -1.640625 0.7687499999999999 -0.7125 1.65 0.440625A1.4625000000000001 1.4625000000000001 0 0 0 21.20625 7.5 1.4812500000000002 1.4812500000000002 0 0 0 21.5625 6.1125l-0.440625 -1.640625a2.203125 2.203125 0 0 0 -3.121875 -3.121875l-9.103125 9.13125a5.896875 5.896875 0 1 0 3.121875 3.121875Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
-                        <path d="M3.99375 16.725a1.78125 1.78125 0 1 0 3.5625 0 1.78125 1.78125 0 1 0 -3.5625 0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
-                      </g>
+                <li data-sidebar="menu-item" class="group-with-action">
+                  <a data-sidebar="menu-button" class="menu-button-with-action" href="/ghost/">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9 10h.01"></path>
+                      <path d="M15 10h.01"></path>
+                      <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"></path>
                     </svg>
-                    <span>Admin</span>
+                    <span>Back to Ghost Admin</span>
+                  </a>
+                  <a class="menu-action" href="/ghost/" target="_blank" rel="noopener noreferrer" aria-label="Open Ghost Admin in new tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M15 3h6v6"></path>
+                      <path d="M10 14 21 3"></path>
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    </svg>
                   </a>
                 </li>
                 <li data-sidebar="menu-item">
@@ -37,7 +43,7 @@
                       <path d="m1.40625 4.453125 19.6875 0 0 14.0625 -19.6875 0Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
                       <path d="m20.7759375 4.96875 -7.635 5.8725000000000005a3.10125 3.10125 0 0 1 -3.781875 0L1.7240625 4.96875" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
                     </svg>
-                    <span>Newsletter</span>
+                    <span>Email delivery</span>
                   </a>
                 </li>
                 <li data-sidebar="menu-item">
@@ -80,9 +86,9 @@
         <div class="page-wrap">
           <div class="page-grid">
             <div class="page-content">
-              <header class="page-header">
+              <header class="page-header" id="overview">
                 <div class="page-header-row">
-                  <h1>Newsletter</h1>
+                  <h1>Email delivery</h1>
                 </div>
                 <div class="page-header-meta">
                   <span class="meta-site">
@@ -98,9 +104,11 @@
               <div class="page-navbar">
                 <div class="page-tabs">
                   <button type="button" class="tab-btn active">Overview</button>
-                  <button type="button" class="tab-btn">Web traffic</button>
-                  <button type="button" class="tab-btn">Newsletters</button>
-                  <button type="button" class="tab-btn">Growth</button>
+                  <button type="button" class="tab-btn">Delivery</button>
+                  <button type="button" class="tab-btn">Failures &amp; complaints</button>
+                  <button type="button" class="tab-btn">Suppressions</button>
+                  <button type="button" class="tab-btn">Queue &amp; health</button>
+                  <button type="button" class="tab-btn">Settings</button>
                 </div>
                 <div class="page-actions">
                   <button type="button" class="ghost-btn ghost-btn-outline ghost-btn-dropdown">
@@ -116,7 +124,7 @@
                 </div>
               </div>
 
-              <section class="controls panel controls-panel">
+              <section class="controls panel controls-panel" id="settings">
                 <div class="control-cluster">
                   <div class="control-row">
                     <label for="preset">Scenario</label>
@@ -140,7 +148,7 @@
 
               <section class="metrics" id="summary-cards"></section>
 
-              <section class="panel">
+              <section class="panel" id="queue-health">
                 <div class="panel-head">
                   <span>System health</span>
                   <span id="health-meta" class="panel-meta mono"></span>
@@ -148,7 +156,7 @@
                 <pre id="health-json" class="health-json mono"></pre>
               </section>
 
-              <section class="panel">
+              <section class="panel" id="failures">
                 <div class="panel-head">
                   <span>Recent failures and complaints</span>
                   <span id="failure-meta" class="panel-meta"></span>
@@ -171,6 +179,40 @@
       </main>
     </main>
   </div>
+
+  <nav class="mobile-bottom-nav" aria-label="Mobile mail navigation">
+    <div class="mobile-bottom-nav-grid">
+      <a class="mobile-bottom-nav-item active" href="#overview" aria-label="Overview">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 10.75 12 3l9 7.75"></path>
+          <path d="M5 10v10h14V10"></path>
+        </svg>
+        <span class="sr-only">Overview</span>
+      </a>
+      <a class="mobile-bottom-nav-item" href="#summary-cards" aria-label="Delivery">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m4 4 16 0 0 16 -16 0z"></path>
+          <path d="m20 6 -8 6 -8 -6"></path>
+        </svg>
+        <span class="sr-only">Delivery</span>
+      </a>
+      <a class="mobile-bottom-nav-item" href="#failures" aria-label="Failures and complaints">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 9 0 4"></path>
+          <path d="m12 17 0.01 0"></path>
+          <path d="m10.29 3.86 -8.23 14.27A2 2 0 0 0 3.79 21h16.42a2 2 0 0 0 1.73 -2.87L13.71 3.86a2 2 0 0 0 -3.42 0z"></path>
+        </svg>
+        <span class="sr-only">Failures and complaints</span>
+      </a>
+      <a class="mobile-bottom-nav-item" href="#settings" aria-label="Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.66 1.66 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1 -2.83 0l-.06-.06a1.66 1.66 0 0 0 -1.82-.33 1.66 1.66 0 0 0 -1 1.51V21a2 2 0 0 1 -2 2 2 2 0 0 1 -2 -2v-.09a1.66 1.66 0 0 0 -1 -1.51 1.66 1.66 0 0 0 -1.82.33l-.06.06a2 2 0 0 1 -2.83 0 2 2 0 0 1 0 -2.83l.06-.06a1.66 1.66 0 0 0 .33 -1.82 1.66 1.66 0 0 0 -1.51 -1H3a2 2 0 0 1 -2 -2 2 2 0 0 1 2 -2h.09a1.66 1.66 0 0 0 1.51 -1 1.66 1.66 0 0 0 -.33 -1.82l-.06-.06a2 2 0 0 1 0 -2.83 2 2 0 0 1 2.83 0l.06.06a1.66 1.66 0 0 0 1.82.33h.02A1.66 1.66 0 0 0 10 3.09V3a2 2 0 0 1 2 -2 2 2 0 0 1 2 2v.09a1.66 1.66 0 0 0 1 1.51h.02a1.66 1.66 0 0 0 1.82 -.33l.06 -.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.66 1.66 0 0 0 -.33 1.82v.02A1.66 1.66 0 0 0 20.91 10H21a2 2 0 0 1 2 2 2 2 0 0 1 -2 2h-.09a1.66 1.66 0 0 0 -1.51 1z"></path>
+        </svg>
+        <span class="sr-only">Settings</span>
+      </a>
+    </div>
+  </nav>
 
   <script src="./app.js" defer></script>
 </body>
