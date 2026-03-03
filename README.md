@@ -1,33 +1,37 @@
 # ghost-mail-bridge
 
-Send Ghost newsletter emails through **AWS SES** instead of Mailgun. This bridge impersonates the Mailgun API so Ghost can keep its native bulk-email lane unchanged.
+**Use AWS SES to send your Ghost newsletter emails without changing anything in Ghost.**
 
-Originally based on `https://github.com/josephsellers/ghost-ses-proxy`, now independently maintained as `https://github.com/ifrederico/ghost-mail-bridge`.
+Ghost has built-in support for Mailgun to send newsletters. But if you'd rather use AWS SES (it's cheaper), this bridge sits between Ghost and SES and translates between them. Ghost thinks it's talking to Mailgun. SES does the actual sending.
 
-## How it works
+No Ghost code changes.
 
-Ghost keeps two email lanes:
-- Transactional lane (`mail__*`) -> SES SMTP
-- Newsletter lane (`bulkEmail__mailgun__*`) -> this bridge -> SES API
+> Originally based on [ghost-ses-proxy](https://github.com/josephsellers/ghost-ses-proxy), now independently maintained at [ghost-mail-bridge](https://github.com/ifrederico/ghost-mail-bridge).
 
-```text
-Sending:
-  Ghost --POST /v3/:domain/messages--> ghost-mail-bridge --SES SendRawEmail--> AWS SES --> Recipients
+---
 
-Events (delivery, opens, clicks, bounces, complaints):
-  AWS SES --> SNS Topic --> SQS Queue --> ghost-mail-bridge --> SQLite
-  Ghost --GET /v3/:domain/events--> ghost-mail-bridge --> reads from SQLite
+## What happens?
+
+Ghost sends emails through two separate “lanes”:
+
+| Lane | What it sends | How it works with the bridge |
+|------|--------------|------|
+| **Transactional** | Magic links, password resets, staff invites | SES via SMTP (no bridge needed) |
+| **Newsletter** | Bulk subscriber emails | Ghost → bridge (Fake Mailgun) → SES |
+
+For **event tracking** (deliveries, opens, clicks, bounces, complaints), the flow goes the other direction:
+
+```
+SES → SNS → SQS → bridge (polls the queue) → stores in SQLite
+                                                     ↑
+                                          Ghost reads events from here
 ```
 
-The bridge handles:
-- Sending: parses Mailgun multipart form data, substitutes `%recipient.*%`, builds raw MIME, sends via SES
-- Event tracking: polls SQS for SES events, maps them to Mailgun-compatible event objects
-- Suppressions: stores bounce/complaint suppressions with Mailgun-compatible delete endpoint
-- Authentication: validates Ghost Mailgun Basic auth against `PROXY_API_KEY`
-- Input hardening: enforces multipart/request/header limits
-- Admin dashboard: lightweight ops UI/API at `ADMIN_BASE_PATH` (default `/ghost/email`)
+Ghost mail bridge also includes a **admin dashboard** so you can see what's going on without digging through logs.
 
-## Quick start
+---
+
+## Getting started
 
 ### 1. Clone and configure
 
@@ -35,59 +39,107 @@ The bridge handles:
 git clone https://github.com/ifrederico/ghost-mail-bridge.git
 cd ghost-mail-bridge
 cp .env.example .env
-# Edit .env
 ```
 
-### 2. Run with Docker Compose
+Open `.env` and fill in your AWS credentials and settings. At minimum you'll need:
+
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- `SQS_QUEUE_URL` — your SQS queue that receives SES events
+- `PROXY_API_KEY` — the API key Ghost will use to authenticate (you pick this)
+- `MAILGUN_DOMAIN` — the domain value Ghost sends (e.g., `mg.yourdomain.com`)
+
+See [Configuration variables](#configuration-variables) for the full list of options.
+
+### 2. Start the bridge
+
+**With Docker (recommended):**
 
 ```bash
 cp docker-compose.example.yml docker-compose.yml
 docker compose up -d
 ```
 
-### 3. Verify service
+**Without Docker:**
+
+You'll need Node.js 20+ and build tools for `better-sqlite3` (`python3`, `make`, `g++`).
 
 ```bash
-curl http://localhost:3003/health
-# {"status":"ok","tables":{"message_map":0,"recipient_emails":0,"events":0,"suppressions":0}}
-```
-
-## Local development (without Docker)
-
-Prerequisites:
-- Node.js 20+
-- Build tools for `better-sqlite3` (`python3`, `make`, `g++`)
-
-```bash
-cp .env.example .env
-# Fill required env vars in .env:
-# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SQS_QUEUE_URL, PROXY_API_KEY, MAILGUN_DOMAIN
-# Set GHOST_ADMIN_URL if you want dashboard auth/session flow locally
-# Optional for dashboard-only styling work:
-# DISABLE_SQS_POLLER=1
-# DISABLE_ADMIN_AUTH=1
-
 npm install
 npm run dev
 ```
 
-Notes:
-- `npm run dev` loads `.env` automatically via Node's `--env-file=.env`.
-- Default SQLite path is `/data/ses-proxy.db` when `/data` is writable (container/VPS).
-- If `/data` is not writable (common on macOS), it automatically falls back to `./data/ses-proxy.db`.
-- For styling-only local work (no local Ghost session), set `DISABLE_ADMIN_AUTH=1` and open `/ghost/email/?demo=1`.
+### 3. Check that it's running
 
-## Mount the dashboard
+```bash
+curl http://localhost:3003/health
+```
 
-The dashboard is available at `/ghost/email` by default.
-If you want a different URL, set `ADMIN_BASE_PATH`.
+You should see something like:
 
-Dashboard auth:
-- Default: validates Ghost admin session cookies and redirects browser users to `/ghost/#/signin` when not logged in
-- Session mode requires `GHOST_ADMIN_URL` (fixed Ghost base URL for session validation)
-- If `GHOST_ADMIN_URL` is unset, dashboard routes return `503` (misconfigured)
+```json
+{
+  "status": "ok",
+  "tables": {
+    "message_map": 0,
+    "recipient_emails": 0,
+    "events": 0,
+    "suppressions": 0
+  }
+}
+```
 
-Example Nginx mapping for `http://yourdomain.com/ghost/email/`:
+### 4. Point Ghost at the bridge
+
+In your Ghost service config (e.g., `docker-compose.yml`), set up both email lanes:
+
+```yaml
+services:
+  ghost:
+    environment:
+      # --- Transactional emails (direct to SES via SMTP) ---
+      mail__transport: SMTP
+      mail__from: '"Your Site" <noreply@yourdomain.com>'
+      mail__options__host: email-smtp.us-east-1.amazonaws.com
+      mail__options__port: 587
+      mail__options__secure: "false"
+      mail__options__auth__user: ${SES_SMTP_USERNAME}
+      mail__options__auth__pass: ${SES_SMTP_PASSWORD}
+
+      # --- Newsletter emails (through the bridge) ---
+      bulkEmail__mailgun__baseUrl: http://ghost-mail-bridge:3003/v3
+      bulkEmail__mailgun__apiKey: ${PROXY_API_KEY}
+      bulkEmail__mailgun__domain: ${MAILGUN_DOMAIN}
+```
+
+That's it. Ghost doesn't know the difference.
+
+---
+
+## Verify everything works
+
+Run through this checklist after setup:
+
+- [ ] **Magic link sign-in** works (transactional lane)
+- [ ] **Password reset** works (transactional lane)
+- [ ] **Staff invite emails** arrive (transactional lane)
+- [ ] **Newsletter send** goes through the bridge (newsletter lane)
+- [ ] **Events show up in Ghost** — delivery, opens, clicks
+
+---
+
+## Admin dashboard
+
+The bridge includes a simple dashboard for monitoring at `/ghost/email` (configurable via `ADMIN_BASE_PATH`).
+
+It shows send summaries, failures, and poller status. Authentication uses your Ghost admin session by default. Just make sure `GHOST_ADMIN_URL` is set.
+
+For local styling/development work without a Ghost session, you can use demo mode:
+
+```
+/ghost/email/?demo=1
+```
+
+If you're running behind Nginx, add a proxy rule:
 
 ```nginx
 location /ghost/email/ {
@@ -98,153 +150,137 @@ location /ghost/email/ {
 }
 ```
 
-Dashboard frontend assets live in:
-- `lib/admin-dashboard-assets/index.html`
-- `lib/admin-dashboard-assets/styles.css`
-- `lib/admin-dashboard-assets/app.js`
-- `lib/admin-dashboard-assets/test-data.json` (styling/demo fixture)
+---
 
-For styling work with stable fake metrics, open:
-- `/ghost/email/?demo=1`
+## AWS setup
 
-This keeps production APIs untouched and makes the UI read fixture data from `test-data.json`.
+You'll need these AWS resources:
 
-## Configure Ghost
+1. **SES** — a verified domain identity and a Configuration Set (for event publishing)
+2. **SNS** — a topic that SES publishes events to
+3. **SQS** — a queue subscribed to that SNS topic (plus a dead-letter queue, recommended)
 
-Ghost service environment example:
+The IAM user/role for the bridge needs these permissions:
 
-```yaml
-services:
-  ghost:
-    environment:
-      # Transactional lane: SES SMTP
-      mail__transport: SMTP
-      mail__from: '"Example Site" <noreply@example.com>'
-      mail__options__host: email-smtp.us-east-1.amazonaws.com
-      mail__options__port: 587
-      mail__options__secure: "false"
-      mail__options__auth__user: ${SES_SMTP_USERNAME}
-      mail__options__auth__pass: ${SES_SMTP_PASSWORD}
-
-      # Newsletter lane: Mailgun-compatible API -> bridge
-      bulkEmail__mailgun__baseUrl: http://ghost-mail-bridge:3003/v3
-      bulkEmail__mailgun__apiKey: ${PROXY_API_KEY}
-      bulkEmail__mailgun__domain: ${MAILGUN_DOMAIN}
-```
-
-Keep Ghost architecture unchanged. This project unifies provider (SES), not Ghost lanes.
-
-## Cutover validation checklist
-
-- Sign-in magic link works
-- Password reset works
-- Staff invite/notification emails work
-- Newsletter send works through bridge
-- Delivery/open/click/bounce/complaint events appear in Ghost
-
-After validation, remove legacy real-Mailgun runtime secrets. Keep `bulkEmail__mailgun__apiKey` + `bulkEmail__mailgun__domain` for compatibility.
-
-## AWS setup guide
-
-Create:
-- Verified SES identity (domain)
-- SES Configuration Set (for event publishing)
-- SNS topic
-- SQS queue (subscribed to SNS)
-- SQS DLQ (recommended)
-
-Set SQS policy so only your SNS topic can publish (`aws:SourceArn` and preferably `aws:SourceAccount`).
-
-IAM permissions needed by bridge credentials:
 - `ses:SendRawEmail`
-- `sqs:ReceiveMessage`
-- `sqs:DeleteMessage`
-- `sqs:GetQueueAttributes`
+- `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes`
 
-## API reference
+Make sure your SQS policy only allows your SNS topic to publish to it (`aws:SourceArn`).
 
-Mailgun-compatible endpoints used by Ghost:
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| `GET` | `/health` | service health and table counts |
-| `POST` | `/v3/:domain/messages` | send bulk email |
-| `GET` | `/v3/:domain/events` | fetch events |
-| `GET` | `/v3/:domain/events/:pageToken` | fetch next event page |
-| `DELETE` | `/v3/:domain/:type/:email` | delete suppression |
-
-Admin/dashboard endpoints:
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| `GET` | `${ADMIN_BASE_PATH}` | dashboard HTML |
-| `GET` | `${ADMIN_BASE_PATH}/api/health` | dashboard health + poller status |
-| `GET` | `${ADMIN_BASE_PATH}/api/summary` | 24h send/event summary |
-| `GET` | `${ADMIN_BASE_PATH}/api/failures` | recent failed/complained events |
-
-## Configuration reference
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `AWS_ACCESS_KEY_ID` | Yes | - | IAM access key |
-| `AWS_SECRET_ACCESS_KEY` | Yes | - | IAM secret key |
-| `AWS_REGION` | No | `us-east-1` | AWS region for SES and SQS |
-| `SQS_QUEUE_URL` | Yes | - | SQS queue URL for SES events |
-| `SES_CONFIGURATION_SET` | No | `ghost-mail-bridge` | SES Configuration Set |
-| `PROXY_API_KEY` | Yes | - | Ghost bulk-email API key |
-| `MAILGUN_DOMAIN` | Yes | - | Ghost bulk-email domain value |
-| `PORT` | No | `3003` | HTTP port |
-| `LOG_LEVEL` | No | `info` | set `debug` for per-recipient send logs |
-| `SEND_CONCURRENCY` | No | `10` | max parallel SES sends |
-| `SES_SEND_MAX_RETRIES` | No | `3` | max retry count per recipient for transient SES errors |
-| `SES_RETRY_BASE_MS` | No | `500` | base backoff in milliseconds for retries |
-| `SES_RETRY_MAX_MS` | No | `10000` | max backoff cap in milliseconds for retries |
-| `SUPPRESSION_RETENTION_DAYS` | No | `0` | suppression retention days (`0` = forever) |
-| `MAX_REQUEST_BYTES` | No | `10485760` | max request size |
-| `MAX_FORM_FIELDS` | No | `2000` | max multipart fields |
-| `MAX_FIELD_SIZE_BYTES` | No | `2097152` | max multipart field size |
-| `MAX_RECIPIENTS` | No | `50000` | max recipients per request |
-| `MAX_CUSTOM_HEADERS` | No | `100` | max custom `h:*` headers |
-| `ADMIN_BASE_PATH` | No | `/ghost/email` | dashboard path |
-| `GHOST_ADMIN_URL` | Conditional | empty | required for dashboard auth; fixed Ghost base URL for session validation |
-| `GHOST_ACCEPT_VERSION` | No | `v6.0` | Ghost Admin API version header |
-
-## Event mapping
-
-| SES Event | Mailgun Event | Notes |
-|-----------|--------------|-------|
-| Delivery | `delivered` | |
-| Open | `opened` | |
-| Click | `clicked` | |
-| Bounce (Permanent) | `failed` (severity: permanent) | adds suppression |
-| Bounce (Transient) | `failed` (severity: temporary) | |
-| Complaint | `complained` | adds suppression |
-| Reject | `failed` (severity: permanent) | adds suppression |
-| Send, DeliveryDelay | skipped | no Mailgun equivalent |
-
-## Storage
-
-SQLite path:
-- default container/VPS: `/data/ses-proxy.db`
-- local fallback when `/data` is not writable: `./data/ses-proxy.db`
-- optional override: set `DB_PATH`
-
-Tables:
-- `message_map`
-- `recipient_emails`
-- `events`
-- `suppressions`
-
-Cleanup runs daily:
-- send/event mapping older than 90 days is removed
-- suppressions are retained forever unless `SUPPRESSION_RETENTION_DAYS` is set
+---
 
 ## Limitations
 
-- Implements only Mailgun API subset Ghost uses
-- No attachment support
-- Event processing is near-real-time via SQS polling
-- SQLite setup is single-instance oriented
+A few things to be aware of:
+
+- Only implements the slice of the Mailgun API that Ghost actually uses — this isn't a general-purpose Mailgun replacement.
+- **No attachment support**.
+- Event tracking is not instant.
+- SQLite means single-instance only — this isn't designed for horizontal scaling.
+
+---
+
+## Reference
+
+### API endpoints
+
+#### Mailgun-compatible (used by Ghost)
+
+| Method | Path | What it does |
+|--------|------|-------------|
+| `POST` | `/v3/:domain/messages` | Send bulk email via SES |
+| `GET` | `/v3/:domain/events` | Fetch events in Mailgun format |
+| `GET` | `/v3/:domain/events/:pageToken` | Fetch next event page |
+| `DELETE` | `/v3/:domain/:type/:email` | Delete a suppression record |
+| `GET` | `/health` | Service status and table counts |
+
+#### Dashboard API
+
+All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/email`).
+
+| Method | Path | What it does |
+|--------|------|-------------|
+| `GET` | `/` | Dashboard HTML |
+| `GET` | `/api/health` | Health + poller status |
+| `GET` | `/api/summary` | 24h send/event summary |
+| `GET` | `/api/failures` | Recent failures and complaints |
+
+### Event mapping
+
+| SES event | Mailgun event | Creates suppression? |
+|-----------|--------------|---------------------|
+| Delivery | `delivered` | No |
+| Open | `opened` | No |
+| Click | `clicked` | No |
+| Bounce (Permanent) | `failed` (permanent) | Yes |
+| Bounce (Transient) | `failed` (temporary) | No |
+| Complaint | `complained` | Yes |
+| Reject | `failed` (permanent) | Yes |
+| Send, DeliveryDelay | *(skipped)* | — |
+
+### Configuration variables
+
+#### Required
+
+| Variable | Description |
+|----------|-------------|
+| `AWS_ACCESS_KEY_ID` | IAM access key |
+| `AWS_SECRET_ACCESS_KEY` | IAM secret key |
+| `SQS_QUEUE_URL` | SQS queue URL for SES events |
+| `PROXY_API_KEY` | API key Ghost uses to authenticate (you choose this) |
+| `MAILGUN_DOMAIN` | Domain value Ghost sends (e.g., `mg.yourdomain.com`) |
+
+#### Optional
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AWS_REGION` | `us-east-1` | AWS region |
+| `SES_CONFIGURATION_SET` | `ghost-mail-bridge` | SES Configuration Set name |
+| `PORT` | `3003` | HTTP port |
+| `LOG_LEVEL` | `info` | Set `debug` for per-recipient logs |
+| `SEND_CONCURRENCY` | `10` | Max parallel SES sends |
+| `SES_SEND_MAX_RETRIES` | `3` | Retries per recipient |
+| `SES_RETRY_BASE_MS` | `500` | Base backoff (ms) |
+| `SES_RETRY_MAX_MS` | `10000` | Max backoff cap (ms) |
+| `SUPPRESSION_RETENTION_DAYS` | `0` | Suppression retention (`0` = forever) |
+| `MAX_REQUEST_BYTES` | `10485760` | Max request size (10 MB) |
+| `MAX_FORM_FIELDS` | `2000` | Max multipart fields |
+| `MAX_FIELD_SIZE_BYTES` | `2097152` | Max field size (2 MB) |
+| `MAX_RECIPIENTS` | `50000` | Max recipients per request |
+| `MAX_CUSTOM_HEADERS` | `100` | Max `h:*` headers |
+| `ADMIN_BASE_PATH` | `/ghost/email` | Dashboard URL path |
+| `GHOST_ADMIN_URL` | *(empty)* | Ghost base URL for dashboard auth (required if using dashboard) |
+| `GHOST_ACCEPT_VERSION` | `v6.0` | Ghost Admin API version header |
+| `DB_PATH` | *(auto)* | Override SQLite path |
+
+### Storage
+
+SQLite database location (in priority order):
+
+1. `DB_PATH` env var if set
+2. `/data/ses-proxy.db` if `/data` is writable (Docker/VPS)
+3. `./data/ses-proxy.db` fallback (macOS local dev)
+
+Tables: `message_map`, `recipient_emails`, `events`, `suppressions`.
+
+Daily cleanup removes send/event data older than 90 days. Suppressions are kept forever unless `SUPPRESSION_RETENTION_DAYS` is set.
+
+### Local development
+
+```bash
+cp .env.example .env
+npm install
+npm run dev    # loads .env automatically
+```
+
+For dashboard-only work without AWS:
+
+```bash
+DISABLE_SQS_POLLER=1 DISABLE_ADMIN_AUTH=1 npm run dev
+# Then open /ghost/email/?demo=1
+```
+
+---
 
 ## License
 
