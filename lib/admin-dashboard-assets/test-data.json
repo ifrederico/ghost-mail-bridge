@@ -1,0 +1,255 @@
+{
+  "summary": {
+    "sent_24h": 42890,
+    "delivered_24h": 41872,
+    "opened_24h": 22714,
+    "clicked_24h": 3912,
+    "failed_24h": 756,
+    "complained_24h": 51,
+    "suppressions": {
+      "bounces": 143,
+      "complaints": 26,
+      "unsubscribes": 912
+    }
+  },
+  "health": {
+    "status": "ok",
+    "service": "ghost-mail-bridge",
+    "timestamp": "2026-03-03T12:00:00.000Z",
+    "path": "/ghost/email",
+    "tables": {
+      "message_map": 9342,
+      "recipient_emails": 42890,
+      "events": 115202,
+      "suppressions": 1081
+    },
+    "poller": {
+      "isRunning": true,
+      "queueDepth": 37,
+      "lastPollStartedAt": "2026-03-03T11:59:32.000Z",
+      "lastPollFinishedAt": "2026-03-03T11:59:34.000Z",
+      "lastMessagesReceived": 18,
+      "lastErrorMessage": ""
+    }
+  },
+  "failures": [
+    {
+      "id": "demo-fail-001",
+      "event": "failed",
+      "severity": "permanent",
+      "recipient": "alison@example.net",
+      "timestamp": 1772510340,
+      "message_id": "m-demo-1001",
+      "email_id": "email-demo-1001",
+      "code": 550,
+      "reason": "Mailbox unavailable",
+      "enhanced_code": "5.1.1"
+    },
+    {
+      "id": "demo-fail-002",
+      "event": "failed",
+      "severity": "temporary",
+      "recipient": "jackson@example.net",
+      "timestamp": 1772510280,
+      "message_id": "m-demo-1002",
+      "email_id": "email-demo-1002",
+      "code": 451,
+      "reason": "Greylisted by recipient server",
+      "enhanced_code": "4.7.1"
+    },
+    {
+      "id": "demo-fail-003",
+      "event": "complained",
+      "severity": "permanent",
+      "recipient": "nora@example.net",
+      "timestamp": 1772510220,
+      "message_id": "m-demo-1003",
+      "email_id": "email-demo-1003",
+      "code": null,
+      "reason": "Feedback loop complaint",
+      "enhanced_code": ""
+    },
+    {
+      "id": "demo-fail-004",
+      "event": "failed",
+      "severity": "permanent",
+      "recipient": "liam@example.net",
+      "timestamp": 1772510160,
+      "message_id": "m-demo-1004",
+      "email_id": "email-demo-1004",
+      "code": 554,
+      "reason": "Rejected by destination domain policy",
+      "enhanced_code": "5.7.1"
+    },
+    {
+      "id": "demo-fail-005",
+      "event": "failed",
+      "severity": "temporary",
+      "recipient": "carlos@example.net",
+      "timestamp": 1772510100,
+      "message_id": "m-demo-1005",
+      "email_id": "email-demo-1005",
+      "code": 421,
+      "reason": "Temporary DNS lookup failure",
+      "enhanced_code": "4.4.3"
+    },
+    {
+      "id": "demo-fail-006",
+      "event": "complained",
+      "severity": "permanent",
+      "recipient": "mia@example.net",
+      "timestamp": 1772510040,
+      "message_id": "m-demo-1006",
+      "email_id": "email-demo-1006",
+      "code": null,
+      "reason": "User marked message as spam",
+      "enhanced_code": ""
+    },
+    {
+      "id": "demo-fail-007",
+      "event": "failed",
+      "severity": "permanent",
+      "recipient": "diana@example.net",
+      "timestamp": 1772509980,
+      "message_id": "m-demo-1007",
+      "email_id": "email-demo-1007",
+      "code": 552,
+      "reason": "Mailbox full",
+      "enhanced_code": "5.2.2"
+    },
+    {
+      "id": "demo-fail-008",
+      "event": "failed",
+      "severity": "temporary",
+      "recipient": "henry@example.net",
+      "timestamp": 1772509920,
+      "message_id": "m-demo-1008",
+      "email_id": "email-demo-1008",
+      "code": 450,
+      "reason": "Recipient server busy",
+      "enhanced_code": "4.2.0"
+    },
+    {
+      "id": "demo-fail-009",
+      "event": "failed",
+      "severity": "permanent",
+      "recipient": "stella@example.net",
+      "timestamp": 1772509860,
+      "message_id": "m-demo-1009",
+      "email_id": "email-demo-1009",
+      "code": 550,
+      "reason": "Unknown recipient",
+      "enhanced_code": "5.1.1"
+    },
+    {
+      "id": "demo-fail-010",
+      "event": "failed",
+      "severity": "temporary",
+      "recipient": "omar@example.net",
+      "timestamp": 1772509800,
+      "message_id": "m-demo-1010",
+      "email_id": "email-demo-1010",
+      "code": 452,
+      "reason": "Insufficient system storage",
+      "enhanced_code": "4.3.1"
+    },
+    {
+      "id": "demo-fail-011",
+      "event": "complained",
+      "severity": "permanent",
+      "recipient": "vitoria@example.net",
+      "timestamp": 1772509740,
+      "message_id": "m-demo-1011",
+      "email_id": "email-demo-1011",
+      "code": null,
+      "reason": "Abuse complaint received",
+      "enhanced_code": ""
+    },
+    {
+      "id": "demo-fail-012",
+      "event": "failed",
+      "severity": "permanent",
+      "recipient": "jun@example.net",
+      "timestamp": 1772509680,
+      "message_id": "m-demo-1012",
+      "email_id": "email-demo-1012",
+      "code": 554,
+      "reason": "Message rejected due to content policy",
+      "enhanced_code": "5.7.0"
+    }
+  ],
+  "suppressions": [
+    {
+      "email": "alison@example.net",
+      "type": "bounces",
+      "reason": "Permanent bounce",
+      "created_at": "2026-03-03T11:59:00.000Z"
+    },
+    {
+      "email": "nora@example.net",
+      "type": "complaints",
+      "reason": "Spam complaint",
+      "created_at": "2026-03-03T11:58:00.000Z"
+    },
+    {
+      "email": "mia@example.net",
+      "type": "complaints",
+      "reason": "Feedback loop complaint",
+      "created_at": "2026-03-03T11:57:00.000Z"
+    },
+    {
+      "email": "diana@example.net",
+      "type": "bounces",
+      "reason": "Mailbox full",
+      "created_at": "2026-03-03T11:56:00.000Z"
+    },
+    {
+      "email": "stella@example.net",
+      "type": "bounces",
+      "reason": "Unknown recipient",
+      "created_at": "2026-03-03T11:55:00.000Z"
+    },
+    {
+      "email": "vitoria@example.net",
+      "type": "complaints",
+      "reason": "Abuse complaint",
+      "created_at": "2026-03-03T11:54:00.000Z"
+    },
+    {
+      "email": "bruno@example.net",
+      "type": "unsubscribes",
+      "reason": "Recipient unsubscribed",
+      "created_at": "2026-03-03T11:53:00.000Z"
+    },
+    {
+      "email": "maya@example.net",
+      "type": "unsubscribes",
+      "reason": "Preference center opt-out",
+      "created_at": "2026-03-03T11:52:00.000Z"
+    },
+    {
+      "email": "theo@example.net",
+      "type": "unsubscribes",
+      "reason": "Bulk opt-out request",
+      "created_at": "2026-03-03T11:51:00.000Z"
+    },
+    {
+      "email": "joana@example.net",
+      "type": "bounces",
+      "reason": "Rejected by SES",
+      "created_at": "2026-03-03T11:50:00.000Z"
+    },
+    {
+      "email": "kai@example.net",
+      "type": "bounces",
+      "reason": "Permanent bounce",
+      "created_at": "2026-03-03T11:49:00.000Z"
+    },
+    {
+      "email": "iris@example.net",
+      "type": "unsubscribes",
+      "reason": "Manual suppression import",
+      "created_at": "2026-03-03T11:48:00.000Z"
+    }
+  ]
+}

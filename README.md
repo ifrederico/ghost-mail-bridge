@@ -98,6 +98,12 @@ Dashboard frontend assets live in:
 - `lib/admin-dashboard-assets/index.html`
 - `lib/admin-dashboard-assets/styles.css`
 - `lib/admin-dashboard-assets/app.js`
+- `lib/admin-dashboard-assets/test-data.json` (styling/demo fixture)
+
+For styling work with stable fake metrics, open:
+- `/ghost/email/?demo=1`
+
+This keeps production APIs untouched and makes the UI read fixture data from `test-data.json`.
 
 ## Configure Ghost
 
