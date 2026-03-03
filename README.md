@@ -52,6 +52,27 @@ curl http://localhost:3003/health
 # {"status":"ok","tables":{"message_map":0,"recipient_emails":0,"events":0,"suppressions":0}}
 ```
 
+## Local development (without Docker)
+
+Prerequisites:
+- Node.js 20+
+- Build tools for `better-sqlite3` (`python3`, `make`, `g++`)
+
+```bash
+cp .env.example .env
+# Fill required env vars in .env:
+# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, SQS_QUEUE_URL, PROXY_API_KEY, MAILGUN_DOMAIN
+# Set GHOST_ADMIN_URL if you want dashboard auth/session flow locally
+
+npm install
+mkdir -p /data
+node --watch server.js
+```
+
+Notes:
+- SQLite file is stored at `/data/ses-proxy.db`.
+- If `/data` is not writable on your machine, create it with proper ownership.
+
 ## Mount the dashboard
 
 The dashboard is available at `/ghost/email` by default.
@@ -72,6 +93,11 @@ location /ghost/email/ {
   proxy_set_header Cookie $http_cookie;
 }
 ```
+
+Dashboard frontend assets live in:
+- `lib/admin-dashboard-assets/index.html`
+- `lib/admin-dashboard-assets/styles.css`
+- `lib/admin-dashboard-assets/app.js`
 
 ## Configure Ghost
 
