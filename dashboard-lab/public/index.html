@@ -103,12 +103,12 @@
 
               <div class="page-navbar">
                 <div class="page-tabs">
-                  <button type="button" class="tab-btn active">Overview</button>
-                  <button type="button" class="tab-btn">Delivery</button>
-                  <button type="button" class="tab-btn">Failures &amp; complaints</button>
-                  <button type="button" class="tab-btn">Suppressions</button>
-                  <button type="button" class="tab-btn">Queue &amp; health</button>
-                  <button type="button" class="tab-btn">Settings</button>
+                  <button type="button" class="tab-btn active" data-tab-target="overview">Overview</button>
+                  <button type="button" class="tab-btn" data-tab-target="delivery">Delivery</button>
+                  <button type="button" class="tab-btn" data-tab-target="failures">Failures &amp; complaints</button>
+                  <button type="button" class="tab-btn" data-tab-target="suppressions">Suppressions</button>
+                  <button type="button" class="tab-btn" data-tab-target="queue">Queue &amp; health</button>
+                  <button type="button" class="tab-btn" data-tab-target="settings">Settings</button>
                 </div>
                 <div class="page-actions">
                   <button type="button" class="ghost-btn ghost-btn-outline ghost-btn-dropdown">
@@ -124,7 +124,7 @@
                 </div>
               </div>
 
-              <section class="controls panel controls-panel" id="settings">
+              <section class="controls panel controls-panel">
                 <div class="control-cluster">
                   <div class="control-row">
                     <label for="preset">Scenario</label>
@@ -146,32 +146,193 @@
                 </div>
               </section>
 
-              <section class="metrics" id="summary-cards"></section>
+              <section class="tab-panel active" data-tab-panel="overview">
+                <section class="metrics" id="overview-cards"></section>
 
-              <section class="panel" id="queue-health">
-                <div class="panel-head">
-                  <span>System health</span>
-                  <span id="health-meta" class="panel-meta mono"></span>
-                </div>
-                <pre id="health-json" class="health-json mono"></pre>
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Status and alerts</span>
+                    <span id="overview-meta" class="panel-meta"></span>
+                  </div>
+                  <ul id="overview-alerts" class="status-list"></ul>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Recent failures preview</span>
+                    <span id="overview-failure-meta" class="panel-meta"></span>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Event</th>
+                        <th>Recipient</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody id="overview-failure-rows"></tbody>
+                  </table>
+                </section>
               </section>
 
-              <section class="panel" id="failures">
-                <div class="panel-head">
-                  <span>Recent failures and complaints</span>
-                  <span id="failure-meta" class="panel-meta"></span>
-                </div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Event</th>
-                      <th>Recipient</th>
-                      <th>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody id="failure-rows"></tbody>
-                </table>
+              <section class="tab-panel" data-tab-panel="delivery">
+                <section class="metrics" id="delivery-cards"></section>
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Hourly timeline (mock)</span>
+                    <span class="panel-meta">Last 24 hours</span>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Hour</th>
+                        <th>Sent</th>
+                        <th>Delivered</th>
+                        <th>Opened</th>
+                        <th>Clicked</th>
+                        <th>Failed</th>
+                        <th>Complained</th>
+                        <th>Volume</th>
+                      </tr>
+                    </thead>
+                    <tbody id="delivery-rows"></tbody>
+                  </table>
+                </section>
+              </section>
+
+              <section class="tab-panel" data-tab-panel="failures">
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Failure reasons</span>
+                    <div class="panel-actions">
+                      <label for="failure-filter">Type</label>
+                      <select id="failure-filter" class="field-select">
+                        <option value="all">All</option>
+                        <option value="failed">Failed</option>
+                        <option value="complained">Complained</option>
+                      </select>
+                      <span id="failure-meta" class="panel-meta"></span>
+                    </div>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Reason</th>
+                        <th>Count</th>
+                      </tr>
+                    </thead>
+                    <tbody id="failure-reason-rows"></tbody>
+                  </table>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Recent failures and complaints</span>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Event</th>
+                        <th>Recipient</th>
+                        <th>Reason</th>
+                        <th>Message ID</th>
+                      </tr>
+                    </thead>
+                    <tbody id="failure-rows"></tbody>
+                  </table>
+                </section>
+              </section>
+
+              <section class="tab-panel" data-tab-panel="suppressions">
+                <section class="metrics" id="suppression-cards"></section>
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Suppression list</span>
+                    <div class="panel-actions">
+                      <label for="suppression-filter">Type</label>
+                      <select id="suppression-filter" class="field-select">
+                        <option value="all">All</option>
+                        <option value="bounces">Bounces</option>
+                        <option value="complaints">Complaints</option>
+                        <option value="unsubscribes">Unsubscribes</option>
+                      </select>
+                      <span id="suppression-meta" class="panel-meta"></span>
+                    </div>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Type</th>
+                        <th>Reason</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="suppression-rows"></tbody>
+                  </table>
+                </section>
+              </section>
+
+              <section class="tab-panel" data-tab-panel="queue">
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Queue and poller state</span>
+                    <span id="queue-meta" class="panel-meta"></span>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody id="queue-rows"></tbody>
+                  </table>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>System health payload</span>
+                    <span id="health-meta" class="panel-meta mono"></span>
+                  </div>
+                  <pre id="health-json" class="health-json mono"></pre>
+                </section>
+              </section>
+
+              <section class="tab-panel" data-tab-panel="settings">
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Runtime settings</span>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Setting</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody id="settings-rows"></tbody>
+                  </table>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-head">
+                    <span>Integration checks</span>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Check</th>
+                        <th>Status</th>
+                        <th>Detail</th>
+                      </tr>
+                    </thead>
+                    <tbody id="settings-check-rows"></tbody>
+                  </table>
+                </section>
               </section>
             </div>
           </div>
@@ -182,21 +343,21 @@
 
   <nav class="mobile-bottom-nav" aria-label="Mobile mail navigation">
     <div class="mobile-bottom-nav-grid">
-      <a class="mobile-bottom-nav-item active" href="#overview" aria-label="Overview">
+      <a class="mobile-bottom-nav-item active" href="#overview" data-tab-target="overview" aria-label="Overview">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 10.75 12 3l9 7.75"></path>
           <path d="M5 10v10h14V10"></path>
         </svg>
         <span class="sr-only">Overview</span>
       </a>
-      <a class="mobile-bottom-nav-item" href="#summary-cards" aria-label="Delivery">
+      <a class="mobile-bottom-nav-item" href="#delivery" data-tab-target="delivery" aria-label="Delivery">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m4 4 16 0 0 16 -16 0z"></path>
           <path d="m20 6 -8 6 -8 -6"></path>
         </svg>
         <span class="sr-only">Delivery</span>
       </a>
-      <a class="mobile-bottom-nav-item" href="#failures" aria-label="Failures and complaints">
+      <a class="mobile-bottom-nav-item" href="#failures" data-tab-target="failures" aria-label="Failures and complaints">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m12 9 0 4"></path>
           <path d="m12 17 0.01 0"></path>
@@ -204,7 +365,7 @@
         </svg>
         <span class="sr-only">Failures and complaints</span>
       </a>
-      <a class="mobile-bottom-nav-item" href="#settings" aria-label="Settings">
+      <a class="mobile-bottom-nav-item" href="#settings" data-tab-target="settings" aria-label="Settings">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.66 1.66 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1 -2.83 0l-.06-.06a1.66 1.66 0 0 0 -1.82-.33 1.66 1.66 0 0 0 -1 1.51V21a2 2 0 0 1 -2 2 2 2 0 0 1 -2 -2v-.09a1.66 1.66 0 0 0 -1 -1.51 1.66 1.66 0 0 0 -1.82.33l-.06.06a2 2 0 0 1 -2.83 0 2 2 0 0 1 0 -2.83l.06-.06a1.66 1.66 0 0 0 .33 -1.82 1.66 1.66 0 0 0 -1.51 -1H3a2 2 0 0 1 -2 -2 2 2 0 0 1 2 -2h.09a1.66 1.66 0 0 0 1.51 -1 1.66 1.66 0 0 0 -.33 -1.82l-.06-.06a2 2 0 0 1 0 -2.83 2 2 0 0 1 2.83 0l.06.06a1.66 1.66 0 0 0 1.82.33h.02A1.66 1.66 0 0 0 10 3.09V3a2 2 0 0 1 2 -2 2 2 0 0 1 2 2v.09a1.66 1.66 0 0 0 1 1.51h.02a1.66 1.66 0 0 0 1.82 -.33l.06 -.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.66 1.66 0 0 0 -.33 1.82v.02A1.66 1.66 0 0 0 20.91 10H21a2 2 0 0 1 2 2 2 2 0 0 1 -2 2h-.09a1.66 1.66 0 0 0 -1.51 1z"></path>

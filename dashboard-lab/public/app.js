@@ -1,17 +1,52 @@
 (function () {
-  var cardsEl = document.getElementById('summary-cards');
-  var healthEl = document.getElementById('health-json');
-  var healthMetaEl = document.getElementById('health-meta');
-  var failureEl = document.getElementById('failure-rows');
-  var failureMetaEl = document.getElementById('failure-meta');
   var presetEl = document.getElementById('preset');
   var intervalEl = document.getElementById('interval');
   var refreshBtn = document.getElementById('refresh');
   var statusEl = document.getElementById('status');
-  var basePathEl = document.getElementById('base-path');
+
+  var tabControls = Array.prototype.slice.call(document.querySelectorAll('[data-tab-target]'));
+  var tabPanels = Array.prototype.slice.call(document.querySelectorAll('[data-tab-panel]'));
+
+  var overviewCardsEl = document.getElementById('overview-cards');
+  var overviewAlertsEl = document.getElementById('overview-alerts');
+  var overviewMetaEl = document.getElementById('overview-meta');
+  var overviewFailureMetaEl = document.getElementById('overview-failure-meta');
+  var overviewFailureRowsEl = document.getElementById('overview-failure-rows');
+
+  var deliveryCardsEl = document.getElementById('delivery-cards');
+  var deliveryRowsEl = document.getElementById('delivery-rows');
+
+  var failureFilterEl = document.getElementById('failure-filter');
+  var failureMetaEl = document.getElementById('failure-meta');
+  var failureReasonRowsEl = document.getElementById('failure-reason-rows');
+  var failureRowsEl = document.getElementById('failure-rows');
+
+  var suppressionFilterEl = document.getElementById('suppression-filter');
+  var suppressionMetaEl = document.getElementById('suppression-meta');
+  var suppressionCardsEl = document.getElementById('suppression-cards');
+  var suppressionRowsEl = document.getElementById('suppression-rows');
+
+  var queueMetaEl = document.getElementById('queue-meta');
+  var queueRowsEl = document.getElementById('queue-rows');
+  var healthMetaEl = document.getElementById('health-meta');
+  var healthJsonEl = document.getElementById('health-json');
+
+  var settingsRowsEl = document.getElementById('settings-rows');
+  var settingsCheckRowsEl = document.getElementById('settings-check-rows');
 
   var timer = null;
-  var currentPreset = 'healthy';
+  var state = {
+    basePath: '',
+    preset: 'healthy',
+    activeTab: 'overview',
+    summary: null,
+    health: null,
+    failures: [],
+    delivery: null,
+    suppressionTotals: { bounces: 0, complaints: 0, unsubscribes: 0 },
+    suppressions: [],
+    settings: { values: [], checks: [] }
+  };
 
   function getBasePath() {
     var path = window.location.pathname;
@@ -20,340 +55,8 @@
     return path || '/ghost/email';
   }
 
-  var basePath = getBasePath();
-  if (basePathEl) {
-    basePathEl.textContent = basePath;
-  }
-
-  function setupBlurDebug() {
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-      return null;
-    }
-
-    var navbarSelector = '.page-navbar';
-    var debugStyleId = 'blur-debug-style';
-    var debugBodyClass = 'blur-debug-pattern';
-
-    var navbar = document.querySelector(navbarSelector);
-    if (!navbar) {
-      return null;
-    }
-
-    var defaultInline = {
-      background: navbar.style.background,
-      backdropFilter: navbar.style.backdropFilter,
-      webkitBackdropFilter: navbar.style.webkitBackdropFilter
-    };
-
-    function cssSupports(prop, value) {
-      if (!window.CSS || typeof window.CSS.supports !== 'function') {
-        return null;
-      }
-
-      try {
-        if (value === undefined) {
-          return window.CSS.supports(prop);
-        }
-        return window.CSS.supports(prop, value);
-      } catch (err) {
-        return null;
-      }
-    }
-
-    function parseAlpha(colorValue) {
-      if (!colorValue) return null;
-      var value = String(colorValue).trim();
-
-      var rgbaMatch = value.match(/^rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)$/i);
-      if (rgbaMatch) {
-        var rgbaAlpha = parseFloat(rgbaMatch[1]);
-        return isFinite(rgbaAlpha) ? rgbaAlpha : null;
-      }
-
-      var rgbSlashMatch = value.match(/^rgb\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*\/\s*([\d.]+%?)\s*\)$/i);
-      if (rgbSlashMatch) {
-        var raw = rgbSlashMatch[1];
-        if (raw.indexOf('%') !== -1) {
-          var pct = parseFloat(raw);
-          return isFinite(pct) ? pct / 100 : null;
-        }
-        var slashAlpha = parseFloat(raw);
-        return isFinite(slashAlpha) ? slashAlpha : null;
-      }
-
-      var rgbMatch = value.match(/^rgb\(/i);
-      if (rgbMatch) return 1;
-
-      return null;
-    }
-
-    function nodeLabel(node) {
-      if (!node || !node.tagName) return '';
-      var label = String(node.tagName).toLowerCase();
-      if (node.id) label += '#' + node.id;
-      if (node.classList && node.classList.length) {
-        label += '.' + Array.prototype.slice.call(node.classList).join('.');
-      }
-      return label;
-    }
-
-    function ensureDebugStyle() {
-      if (document.getElementById(debugStyleId)) return;
-      var style = document.createElement('style');
-      style.id = debugStyleId;
-      style.textContent =
-        'body.' + debugBodyClass + ' .page-content {' +
-        ' background-image: repeating-linear-gradient(120deg, rgba(0, 0, 0, 0.14) 0 18px, rgba(255, 255, 255, 0.68) 18px 36px);' +
-        '}' +
-        'body.' + debugBodyClass + ' .page-navbar {' +
-        ' box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);' +
-        '}';
-      document.head.appendChild(style);
-    }
-
-    function getNavbar() {
-      return document.querySelector(navbarSelector);
-    }
-
-    function inspect() {
-      var nav = getNavbar();
-      if (!nav) {
-        console.warn('[blurDebug] .page-navbar not found');
-        return null;
-      }
-
-      var computed = window.getComputedStyle(nav);
-      var beforeComputed = window.getComputedStyle(nav, '::before');
-      var supports = {
-        backdropFilter: cssSupports('backdrop-filter', 'blur(1px)'),
-        webkitBackdropFilter: cssSupports('-webkit-backdrop-filter', 'blur(1px)'),
-        sticky: cssSupports('position', 'sticky')
-      };
-
-      var navState = {
-        node: nodeLabel(nav),
-        position: computed.position,
-        top: computed.top,
-        zIndex: computed.zIndex,
-        backgroundColor: computed.backgroundColor,
-        opacity: computed.opacity,
-        backdropFilter: computed.backdropFilter || '',
-        webkitBackdropFilter: computed.webkitBackdropFilter || '',
-        filter: computed.filter,
-        isolation: computed.isolation,
-        willChange: computed.willChange
-      };
-
-      var beforeState = {
-        display: beforeComputed.display,
-        backgroundColor: beforeComputed.backgroundColor,
-        backdropFilter: beforeComputed.backdropFilter || '',
-        webkitBackdropFilter: beforeComputed.webkitBackdropFilter || '',
-        opacity: beforeComputed.opacity,
-        zIndex: beforeComputed.zIndex,
-        content: beforeComputed.content
-      };
-
-      var alpha = parseAlpha(computed.backgroundColor);
-      var beforeAlpha = parseAlpha(beforeComputed.backgroundColor);
-      var navHasBackdrop =
-        !(!computed.backdropFilter || computed.backdropFilter === 'none') ||
-        !(!computed.webkitBackdropFilter || computed.webkitBackdropFilter === 'none');
-      var beforeHasBackdrop =
-        !(!beforeComputed.backdropFilter || beforeComputed.backdropFilter === 'none') ||
-        !(!beforeComputed.webkitBackdropFilter || beforeComputed.webkitBackdropFilter === 'none');
-      var blurSource = navHasBackdrop ? 'navbar' : (beforeHasBackdrop ? 'navbar::before' : 'none');
-      var effectiveAlpha = alpha;
-      if ((effectiveAlpha === null || effectiveAlpha === 0) && beforeAlpha !== null) {
-        effectiveAlpha = beforeAlpha;
-      }
-      var chain = [];
-      var cursor = nav;
-
-      while (cursor && cursor.nodeType === 1) {
-        var style = window.getComputedStyle(cursor);
-        chain.push({
-          node: nodeLabel(cursor),
-          position: style.position,
-          zIndex: style.zIndex,
-          borderRadius: style.borderRadius,
-          overflowX: style.overflowX,
-          overflowY: style.overflowY,
-          transform: style.transform === 'none' ? '' : style.transform,
-          filter: style.filter === 'none' ? '' : style.filter,
-          contain: style.contain === 'none' ? '' : style.contain,
-          isolation: style.isolation === 'auto' ? '' : style.isolation,
-          opacity: style.opacity,
-          background: style.backgroundColor
-        });
-        cursor = cursor.parentElement;
-      }
-
-      var blockers = [];
-      if (supports.backdropFilter === false && supports.webkitBackdropFilter === false) {
-        blockers.push('Browser reports no backdrop-filter support.');
-      }
-      if (!navHasBackdrop && !beforeHasBackdrop) {
-        blockers.push('Computed backdrop filter is none on .page-navbar and .page-navbar::before.');
-      }
-      if (effectiveAlpha !== null && effectiveAlpha > 0.9) {
-        blockers.push('Navbar layer alpha is ' + effectiveAlpha.toFixed(2) + ' (very opaque can hide blur details).');
-      }
-
-      for (var i = 0; i < chain.length; i += 1) {
-        if (chain[i].contain.indexOf('paint') !== -1) {
-          blockers.push('Ancestor uses contain: paint (' + chain[i].node + ').');
-        }
-        if (chain[i].filter) {
-          blockers.push('Ancestor has filter set (' + chain[i].node + ').');
-        }
-
-        var radiusValue = String(chain[i].borderRadius || '').trim();
-        var hasRadius = radiusValue && radiusValue !== '0px' && radiusValue !== '0px 0px 0px 0px';
-        var overflowX = String(chain[i].overflowX || '');
-        var overflowY = String(chain[i].overflowY || '');
-        var hasClippingOverflow =
-          overflowX !== 'visible' || overflowY !== 'visible';
-        var isFirefox = /firefox/i.test(navigator.userAgent || '');
-        if (isFirefox && hasRadius && hasClippingOverflow) {
-          blockers.push(
-            'Firefox bug risk: ancestor has border-radius + non-visible overflow (' +
-            chain[i].node +
-            ').'
-          );
-        }
-      }
-
-      console.groupCollapsed('[blurDebug] inspect');
-      console.log('Support', supports);
-      console.table([navState]);
-      console.table([beforeState]);
-      console.table(chain);
-      if (blockers.length) {
-        console.warn('Potential blockers:\n- ' + blockers.join('\n- '));
-      } else {
-        console.log('No obvious blockers detected.');
-      }
-      console.groupEnd();
-
-      return {
-        supports: supports,
-        nav: navState,
-        before: beforeState,
-        alpha: alpha,
-        beforeAlpha: beforeAlpha,
-        effectiveAlpha: effectiveAlpha,
-        blurSource: blurSource,
-        chain: chain,
-        blockers: blockers
-      };
-    }
-
-    function logSnapshot(label) {
-      var data = inspect();
-      if (!data) return null;
-      var payload = {
-        supports: data.supports,
-        nav: data.nav,
-        before: data.before,
-        blurSource: data.blurSource,
-        alpha: data.alpha,
-        beforeAlpha: data.beforeAlpha,
-        effectiveAlpha: data.effectiveAlpha,
-        blockers: data.blockers
-      };
-      var title = '[blurDebug] ' + (label || 'snapshot') + ' json';
-      console.log(title, JSON.stringify(payload, null, 2));
-      return data;
-    }
-
-    function set(options) {
-      var nav = getNavbar();
-      if (!nav) return null;
-
-      var opts = options || {};
-      var blur = opts.blur;
-      var saturation = opts.saturation;
-      var alpha = opts.alpha;
-      var rgb = opts.rgb || '255 255 255';
-
-      if (blur !== undefined || saturation !== undefined) {
-        var blurValue = typeof blur === 'number' ? blur + 'px' : String(blur || '24px');
-        var satValue = typeof saturation === 'number' ? saturation + '%' : String(saturation || '180%');
-        var filterValue = 'saturate(' + satValue + ') blur(' + blurValue + ')';
-        nav.style.webkitBackdropFilter = filterValue;
-        nav.style.backdropFilter = filterValue;
-      }
-
-      if (alpha !== undefined) {
-        nav.style.background = 'rgb(' + rgb + ' / ' + alpha + ')';
-      }
-
-      return inspect();
-    }
-
-    function reset() {
-      var nav = getNavbar();
-      if (!nav) return null;
-
-      nav.style.background = defaultInline.background;
-      nav.style.backdropFilter = defaultInline.backdropFilter;
-      nav.style.webkitBackdropFilter = defaultInline.webkitBackdropFilter;
-      document.body.classList.remove(debugBodyClass);
-      return inspect();
-    }
-
-    function enableProbe() {
-      ensureDebugStyle();
-      document.body.classList.add(debugBodyClass);
-      return inspect();
-    }
-
-    function disableProbe() {
-      document.body.classList.remove(debugBodyClass);
-      return inspect();
-    }
-
-    function toggleProbe() {
-      ensureDebugStyle();
-      document.body.classList.toggle(debugBodyClass);
-      return inspect();
-    }
-
-    function help() {
-      console.log(
-        '[blurDebug] Commands:\n' +
-        'blurDebug.inspect()\n' +
-        'blurDebug.logSnapshot("label")\n' +
-        'blurDebug.set({ blur: 24, alpha: 0.78 })\n' +
-        'blurDebug.enableProbe()\n' +
-        'blurDebug.disableProbe()\n' +
-        'blurDebug.toggleProbe()\n' +
-        'blurDebug.reset()'
-      );
-    }
-
-    var api = {
-      inspect: inspect,
-      logSnapshot: logSnapshot,
-      set: set,
-      reset: reset,
-      enableProbe: enableProbe,
-      disableProbe: disableProbe,
-      toggleProbe: toggleProbe,
-      help: help
-    };
-
-    window.blurDebug = api;
-    return api;
-  }
-
-  function setStatus(text) {
-    statusEl.textContent = text;
-  }
-
-  function esc(str) {
-    return String(str === undefined || str === null ? '' : str)
+  function esc(value) {
+    return String(value === undefined || value === null ? '' : value)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
@@ -364,32 +67,272 @@
     return new Date(ts * 1000).toLocaleString();
   }
 
+  function fmtIso(iso) {
+    if (!iso) return '-';
+    var date = new Date(iso);
+    if (!Number.isFinite(date.getTime())) return String(iso);
+    return date.toLocaleString();
+  }
+
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
+
+  function normalizeTab(tab) {
+    var value = String(tab || '').replace(/^#/, '').toLowerCase();
+    if (!value) return 'overview';
+    for (var i = 0; i < tabPanels.length; i += 1) {
+      if (tabPanels[i].getAttribute('data-tab-panel') === value) {
+        return value;
+      }
+    }
+    return 'overview';
+  }
+
+  function setActiveTab(tab, updateHash) {
+    var target = normalizeTab(tab);
+    state.activeTab = target;
+
+    tabPanels.forEach(function (panel) {
+      panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === target);
+    });
+
+    tabControls.forEach(function (control) {
+      control.classList.toggle('active', control.getAttribute('data-tab-target') === target);
+    });
+
+    if (updateHash) {
+      if (window.history && typeof window.history.replaceState === 'function') {
+        window.history.replaceState(null, '', '#' + target);
+      } else {
+        window.location.hash = target;
+      }
+    }
+  }
+
+  function seededRng(seed) {
+    var stateSeed = seed >>> 0;
+    return function () {
+      stateSeed = (stateSeed * 1664525 + 1013904223) >>> 0;
+      return stateSeed / 4294967296;
+    };
+  }
+
+  function seedFromSummary(summary, preset) {
+    var seed = 0;
+    var source = [
+      preset,
+      summary.sent_24h,
+      summary.delivered_24h,
+      summary.failed_24h,
+      summary.complained_24h,
+      summary.suppressions.bounces,
+      summary.suppressions.complaints
+    ].join('|');
+
+    for (var i = 0; i < source.length; i += 1) {
+      seed = (seed + source.charCodeAt(i) * (i + 11)) >>> 0;
+    }
+
+    return seed;
+  }
+
+  function distribute(total, size, rng) {
+    var values = [];
+    var i;
+    for (i = 0; i < size; i += 1) values.push(0);
+    if (!total) return values;
+
+    for (i = 0; i < total; i += 1) {
+      var idx = Math.floor(rng() * size);
+      if (idx < 0) idx = 0;
+      if (idx >= size) idx = size - 1;
+      values[idx] += 1;
+    }
+
+    return values;
+  }
+
+  function buildDelivery(summary, preset) {
+    var seed = seedFromSummary(summary, preset) ^ 0xa53f1c9b;
+    var rng = seededRng(seed);
+    var sentDist = distribute(summary.sent_24h, 24, rng);
+    var deliveredDist = distribute(summary.delivered_24h, 24, rng);
+    var openedDist = distribute(summary.opened_24h, 24, rng);
+    var clickedDist = distribute(summary.clicked_24h, 24, rng);
+    var failedDist = distribute(summary.failed_24h, 24, rng);
+    var complainedDist = distribute(summary.complained_24h, 24, rng);
+    var now = new Date();
+    now.setMinutes(0, 0, 0);
+
+    var timeline = [];
+    for (var i = 23; i >= 0; i -= 1) {
+      var point = new Date(now.getTime() - i * 3600000);
+      var idx = 23 - i;
+      timeline.push({
+        hour: point,
+        sent: sentDist[idx],
+        delivered: deliveredDist[idx],
+        opened: openedDist[idx],
+        clicked: clickedDist[idx],
+        failed: failedDist[idx],
+        complained: complainedDist[idx]
+      });
+    }
+
+    function percent(num, den) {
+      if (!den) return 0;
+      return Math.round((num / den) * 1000) / 10;
+    }
+
+    return {
+      rates: {
+        delivery: percent(summary.delivered_24h, summary.sent_24h),
+        open: percent(summary.opened_24h, summary.delivered_24h),
+        click: percent(summary.clicked_24h, summary.delivered_24h),
+        failure: percent(summary.failed_24h, summary.sent_24h),
+        complaint: percent(summary.complained_24h, summary.delivered_24h)
+      },
+      timeline: timeline
+    };
+  }
+
+  function buildSuppressions(summary, preset) {
+    var seed = seedFromSummary(summary, preset) ^ 0x5c31a2ff;
+    var rng = seededRng(seed);
+    var domains = ['example.net', 'mail.test', 'inbox.sample'];
+    var reasons = {
+      bounces: [
+        'Permanent bounce',
+        'Mailbox unavailable',
+        'Rejected by recipient domain'
+      ],
+      complaints: [
+        'Spam complaint',
+        'Feedback loop complaint',
+        'Abuse report'
+      ],
+      unsubscribes: [
+        'Unsubscribed by recipient',
+        'Bulk opt-out request',
+        'Preference center opt-out'
+      ]
+    };
+
+    var totals = {
+      bounces: summary.suppressions.bounces,
+      complaints: summary.suppressions.complaints,
+      unsubscribes: summary.suppressions.unsubscribes
+    };
+
+    var previewCaps = {
+      bounces: Math.min(totals.bounces, 14),
+      complaints: Math.min(totals.complaints, 10),
+      unsubscribes: Math.min(totals.unsubscribes, 10)
+    };
+
+    var items = [];
+    var typeKeys = ['bounces', 'complaints', 'unsubscribes'];
+    var serial = 0;
+
+    typeKeys.forEach(function (type) {
+      var count = previewCaps[type];
+      for (var i = 0; i < count; i += 1) {
+        serial += 1;
+        var localPart = 'recipient+' + (1000 + serial + Math.floor(rng() * 9000));
+        var domain = domains[Math.floor(rng() * domains.length)];
+        var minuteOffset = Math.floor(rng() * 60 * 24 * 7);
+        var createdAt = new Date(Date.now() - minuteOffset * 60000).toISOString();
+        var reasonSet = reasons[type];
+
+        items.push({
+          email: localPart + '@' + domain,
+          type: type,
+          reason: reasonSet[Math.floor(rng() * reasonSet.length)],
+          created_at: createdAt
+        });
+      }
+    });
+
+    items.sort(function (a, b) {
+      return b.created_at.localeCompare(a.created_at);
+    });
+
+    return {
+      totals: totals,
+      items: items
+    };
+  }
+
+  function buildSettings(summary, health, preset) {
+    var deliveryRate = summary.sent_24h ? summary.delivered_24h / summary.sent_24h : 0;
+    var complaintRate = summary.delivered_24h ? summary.complained_24h / summary.delivered_24h : 0;
+
+    return {
+      values: [
+        { key: 'Mode', value: 'Dashboard lab (mock data)' },
+        { key: 'Scenario preset', value: preset },
+        { key: 'Base path', value: state.basePath },
+        { key: 'Polling interval', value: intervalEl.value === '0' ? 'manual' : (Math.round(parseInt(intervalEl.value, 10) / 1000) + ' seconds') },
+        { key: 'Service', value: health.service || 'ghost-mail-bridge' },
+        { key: 'Service status', value: health.status || 'unknown' }
+      ],
+      checks: [
+        {
+          name: 'Service healthy',
+          status: health.status === 'ok' ? 'ok' : 'warn',
+          detail: health.status === 'ok' ? 'All core signals are green' : 'Service reports degraded state'
+        },
+        {
+          name: 'Poller running',
+          status: health.poller && health.poller.isRunning ? 'ok' : 'warn',
+          detail: health.poller && health.poller.isRunning ? 'Event poller loop active' : 'Poller loop is not running'
+        },
+        {
+          name: 'Delivery rate',
+          status: deliveryRate >= 0.95 ? 'ok' : 'warn',
+          detail: Math.round(deliveryRate * 1000) / 10 + '% of sent emails were delivered'
+        },
+        {
+          name: 'Complaint rate',
+          status: complaintRate <= 0.002 ? 'ok' : 'warn',
+          detail: Math.round(complaintRate * 1000) / 10 + '% of delivered emails were complaints'
+        },
+        {
+          name: 'Recent poller errors',
+          status: health.poller && health.poller.lastErrorMessage ? 'warn' : 'ok',
+          detail: health.poller && health.poller.lastErrorMessage ? health.poller.lastErrorMessage : 'No recent poller errors'
+        }
+      ]
+    };
+  }
+
   function metricClass(label, value) {
-    if (label.indexOf('Failed') === 0 || label.indexOf('Complained') === 0) {
+    if (label.indexOf('Failed') === 0 || label.indexOf('Complained') === 0 || label.indexOf('Failure rate') === 0) {
       return value > 0 ? 'danger' : 'ok';
     }
-    if (label.indexOf('Suppressed') === 0) {
+    if (label.indexOf('Suppressed') === 0 || label.indexOf('Complaint rate') === 0) {
       return value > 0 ? 'warn' : 'ok';
     }
     return '';
   }
 
-  function metricNumber(value) {
-    if (typeof value === 'number') {
-      return isFinite(value) ? value : 0;
-    }
-    var num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
-    return isFinite(num) ? num : 0;
-  }
-
   function metricTone(label) {
     var lower = String(label || '').toLowerCase();
-    if (lower.indexOf('failed') === 0) return 'tone-rose';
-    if (lower.indexOf('complained') === 0) return 'tone-orange';
+    if (lower.indexOf('failed') === 0 || lower.indexOf('failure') === 0) return 'tone-rose';
+    if (lower.indexOf('complained') === 0 || lower.indexOf('complaint') === 0) return 'tone-orange';
     if (lower.indexOf('suppressed') === 0) return 'tone-amber';
-    if (lower.indexOf('opened') === 0 || lower.indexOf('clicked') === 0) return 'tone-teal';
-    if (lower.indexOf('delivered') === 0) return 'tone-darkblue';
+    if (lower.indexOf('opened') === 0 || lower.indexOf('clicked') === 0 || lower.indexOf('open rate') === 0 || lower.indexOf('click rate') === 0) return 'tone-teal';
+    if (lower.indexOf('delivered') === 0 || lower.indexOf('delivery rate') === 0) return 'tone-darkblue';
     return 'tone-blue';
+  }
+
+  function metricNumber(value) {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    var num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(num) ? num : 0;
   }
 
   function metricSparkline(label, value) {
@@ -425,26 +368,236 @@
       '</div>';
   }
 
-  function metric(label, value) {
+  function metric(label, value, suffix) {
     var cls = metricClass(label, value);
     var tone = metricTone(label);
-    var meta = label.indexOf('24h') !== -1 ? 'Last 24 hours' : 'Current total';
+    var display = suffix ? (value + suffix) : value;
     var classes = ['metric', tone];
     if (cls) classes.push('metric-' + cls);
+
     return '<article class="' + classes.join(' ') + '">' +
       '<div class="metric-head">' +
-      '<div class="metric-label"><span class="metric-dot"></span>' + label + '</div>' +
+      '<div class="metric-label"><span class="metric-dot"></span>' + esc(label) + '</div>' +
       '<button class="metric-action" type="button">View more</button>' +
       '</div>' +
-      '<div class="metric-value ' + cls + '">' + value + '</div>' +
-      '<div class="metric-meta">' + meta + '</div>' +
+      '<div class="metric-value ' + cls + '">' + esc(display) + '</div>' +
+      '<div class="metric-meta">Last 24 hours</div>' +
       metricSparkline(label, value) +
       '</article>';
   }
 
-  function eventPill(evt) {
-    var eventName = esc(evt || '');
+  function eventPill(eventType) {
+    var eventName = esc(eventType || '');
     return '<span class="event-pill ' + eventName + '">' + eventName + '</span>';
+  }
+
+  function renderOverview() {
+    var summary = state.summary;
+    var health = state.health;
+
+    overviewCardsEl.innerHTML = [
+      metric('Sent (24h)', summary.sent_24h),
+      metric('Delivered (24h)', summary.delivered_24h),
+      metric('Opened (24h)', summary.opened_24h),
+      metric('Clicked (24h)', summary.clicked_24h),
+      metric('Failed (24h)', summary.failed_24h),
+      metric('Complained (24h)', summary.complained_24h)
+    ].join('');
+
+    var alerts = [];
+    var failureRate = summary.sent_24h ? summary.failed_24h / summary.sent_24h : 0;
+    var complaintRate = summary.delivered_24h ? summary.complained_24h / summary.delivered_24h : 0;
+
+    if (health.status !== 'ok') {
+      alerts.push({ level: 'warn', text: 'Service status is ' + health.status + '.' });
+    }
+    if (failureRate > 0.05) {
+      alerts.push({ level: 'danger', text: 'Failure rate is above 5%.' });
+    }
+    if (complaintRate > 0.002) {
+      alerts.push({ level: 'warn', text: 'Complaint rate is above 0.2%.' });
+    }
+    if (health.poller && health.poller.lastErrorMessage) {
+      alerts.push({ level: 'danger', text: 'Poller error: ' + health.poller.lastErrorMessage });
+    }
+    if (!alerts.length) {
+      alerts.push({ level: 'ok', text: 'No active delivery alerts.' });
+    }
+
+    overviewMetaEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+    overviewAlertsEl.innerHTML = alerts.map(function (alert) {
+      return '<li class="status-item">' +
+        '<span>' + esc(alert.text) + '</span>' +
+        '<span class="status-pill ' + esc(alert.level) + '">' + esc(alert.level) + '</span>' +
+        '</li>';
+    }).join('');
+
+    var previewRows = state.failures.slice(0, 5);
+    overviewFailureMetaEl.textContent = previewRows.length + ' rows';
+    overviewFailureRowsEl.innerHTML = previewRows.map(function (row) {
+      return '<tr>' +
+        '<td>' + esc(fmtTime(row.timestamp)) + '</td>' +
+        '<td>' + eventPill(row.event) + '</td>' +
+        '<td class="mono">' + esc(row.recipient) + '</td>' +
+        '<td>' + esc(row.reason || row.enhanced_code || '-') + '</td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="4">No recent failures.</td></tr>';
+  }
+
+  function renderDelivery() {
+    var summary = state.summary;
+    var delivery = state.delivery;
+
+    deliveryCardsEl.innerHTML = [
+      metric('Delivery rate', delivery.rates.delivery, '%'),
+      metric('Open rate', delivery.rates.open, '%'),
+      metric('Click rate', delivery.rates.click, '%'),
+      metric('Failure rate', delivery.rates.failure, '%'),
+      metric('Complaint rate', delivery.rates.complaint, '%'),
+      metric('Sent (24h)', summary.sent_24h)
+    ].join('');
+
+    var maxSent = 1;
+    delivery.timeline.forEach(function (row) {
+      if (row.sent > maxSent) maxSent = row.sent;
+    });
+
+    deliveryRowsEl.innerHTML = delivery.timeline.map(function (row) {
+      var hour = row.hour.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      var width = Math.round((row.sent / maxSent) * 100);
+      return '<tr>' +
+        '<td class="mono">' + esc(hour) + '</td>' +
+        '<td>' + esc(row.sent) + '</td>' +
+        '<td>' + esc(row.delivered) + '</td>' +
+        '<td>' + esc(row.opened) + '</td>' +
+        '<td>' + esc(row.clicked) + '</td>' +
+        '<td>' + esc(row.failed) + '</td>' +
+        '<td>' + esc(row.complained) + '</td>' +
+        '<td><div class="bar-track"><div class="bar-fill" style="width:' + width + '%"></div></div></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function filteredFailures() {
+    var type = failureFilterEl.value || 'all';
+    if (type === 'all') return state.failures.slice();
+    return state.failures.filter(function (row) {
+      return row.event === type;
+    });
+  }
+
+  function renderFailures() {
+    var rows = filteredFailures();
+    var reasonCounts = {};
+
+    rows.forEach(function (row) {
+      var key = row.reason || row.enhanced_code || 'Unknown';
+      reasonCounts[key] = (reasonCounts[key] || 0) + 1;
+    });
+
+    var reasonRows = Object.keys(reasonCounts).map(function (key) {
+      return {
+        reason: key,
+        count: reasonCounts[key]
+      };
+    }).sort(function (a, b) {
+      return b.count - a.count;
+    });
+
+    failureMetaEl.textContent = rows.length + ' rows';
+    failureReasonRowsEl.innerHTML = reasonRows.map(function (row) {
+      return '<tr><td>' + esc(row.reason) + '</td><td class="mono">' + esc(row.count) + '</td></tr>';
+    }).join('') || '<tr><td colspan="2">No reasons available.</td></tr>';
+
+    failureRowsEl.innerHTML = rows.map(function (row) {
+      return '<tr>' +
+        '<td>' + esc(fmtTime(row.timestamp)) + '</td>' +
+        '<td>' + eventPill(row.event) + '</td>' +
+        '<td class="mono">' + esc(row.recipient) + '</td>' +
+        '<td>' + esc(row.reason || row.enhanced_code || '-') + '</td>' +
+        '<td class="mono">' + esc(row.message_id || '-') + '</td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="5">No recent failed or complained events.</td></tr>';
+  }
+
+  function filteredSuppressions() {
+    var type = suppressionFilterEl.value || 'all';
+    if (type === 'all') return state.suppressions.slice();
+    return state.suppressions.filter(function (row) {
+      return row.type === type;
+    });
+  }
+
+  function renderSuppressions() {
+    var totals = state.suppressionTotals;
+    var rows = filteredSuppressions();
+
+    suppressionCardsEl.innerHTML = [
+      metric('Suppressed bounces', totals.bounces),
+      metric('Suppressed complaints', totals.complaints),
+      metric('Suppressed unsubscribes', totals.unsubscribes)
+    ].join('');
+
+    suppressionMetaEl.textContent = rows.length + ' rows';
+    suppressionRowsEl.innerHTML = rows.map(function (row) {
+      return '<tr>' +
+        '<td class="mono">' + esc(row.email) + '</td>' +
+        '<td>' + esc(row.type) + '</td>' +
+        '<td>' + esc(row.reason || '-') + '</td>' +
+        '<td>' + esc(fmtIso(row.created_at)) + '</td>' +
+        '<td><button type="button" class="table-action-btn" data-remove-email="' + esc(row.email) + '" data-remove-type="' + esc(row.type) + '">Remove</button></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="5">No suppressions found.</td></tr>';
+  }
+
+  function renderQueue() {
+    var health = state.health;
+    var poller = health.poller || {};
+
+    queueMetaEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+    healthMetaEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+    var rows = [
+      ['Status', health.status || '-'],
+      ['Poller running', poller.isRunning ? 'Yes' : 'No'],
+      ['Last poll started', poller.lastPollStartedAt || '-'],
+      ['Last poll finished', poller.lastPollFinishedAt || '-'],
+      ['Last error at', poller.lastErrorAt || '-'],
+      ['Last error message', poller.lastErrorMessage || '-'],
+      ['Messages received (total)', poller.totalMessagesReceived === undefined ? '-' : String(poller.totalMessagesReceived)],
+      ['Events stored (total)', poller.totalEventsStored === undefined ? '-' : String(poller.totalEventsStored)],
+      ['Queue depth', 'Mock data'],
+      ['DLQ depth', 'Mock data']
+    ];
+
+    queueRowsEl.innerHTML = rows.map(function (row) {
+      return '<tr><td>' + esc(row[0]) + '</td><td class="mono">' + esc(row[1]) + '</td></tr>';
+    }).join('');
+
+    healthJsonEl.textContent = JSON.stringify(health, null, 2);
+  }
+
+  function renderSettings() {
+    settingsRowsEl.innerHTML = state.settings.values.map(function (row) {
+      return '<tr><td>' + esc(row.key) + '</td><td class="mono">' + esc(row.value) + '</td></tr>';
+    }).join('');
+
+    settingsCheckRowsEl.innerHTML = state.settings.checks.map(function (row) {
+      return '<tr>' +
+        '<td>' + esc(row.name) + '</td>' +
+        '<td><span class="status-pill ' + esc(row.status) + '">' + esc(row.status) + '</span></td>' +
+        '<td>' + esc(row.detail) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderAll() {
+    renderOverview();
+    renderDelivery();
+    renderFailures();
+    renderSuppressions();
+    renderQueue();
+    renderSettings();
   }
 
   function updateAutoRefresh() {
@@ -466,7 +619,7 @@
   }
 
   async function loadPresets() {
-    var response = await fetch(basePath + '/api/presets');
+    var response = await fetch(state.basePath + '/api/presets');
     if (!response.ok) {
       throw new Error('Failed to load presets');
     }
@@ -484,63 +637,82 @@
   }
 
   async function load() {
-    var query = '?preset=' + encodeURIComponent(currentPreset);
+    var query = '?preset=' + encodeURIComponent(state.preset);
 
     try {
       setStatus('loading...');
 
       var responses = await Promise.all([
-        fetch(basePath + '/api/summary' + query),
-        fetch(basePath + '/api/health' + query),
-        fetch(basePath + '/api/failures' + query + '&limit=25')
+        fetch(state.basePath + '/api/summary' + query),
+        fetch(state.basePath + '/api/health' + query),
+        fetch(state.basePath + '/api/failures' + query + '&limit=80')
       ]);
 
       if (!responses[0].ok || !responses[1].ok || !responses[2].ok) {
         throw new Error('Dashboard API request failed');
       }
 
-      var summary = await responses[0].json();
-      var health = await responses[1].json();
-      var failures = await responses[2].json();
+      state.summary = await responses[0].json();
+      state.health = await responses[1].json();
 
-      cardsEl.innerHTML = [
-        metric('Sent (24h)', summary.sent_24h),
-        metric('Delivered (24h)', summary.delivered_24h),
-        metric('Opened (24h)', summary.opened_24h),
-        metric('Clicked (24h)', summary.clicked_24h),
-        metric('Failed (24h)', summary.failed_24h),
-        metric('Complained (24h)', summary.complained_24h),
-        metric('Suppressed bounces', summary.suppressions.bounces),
-        metric('Suppressed complaints', summary.suppressions.complaints),
-        metric('Suppressed unsubscribes', summary.suppressions.unsubscribes)
-      ].join('');
+      var failurePayload = await responses[2].json();
+      state.failures = failurePayload.items || [];
 
-      healthMetaEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
-      healthEl.textContent = JSON.stringify(health, null, 2);
+      var suppressionData = buildSuppressions(state.summary, state.preset);
+      state.suppressionTotals = suppressionData.totals;
+      state.suppressions = suppressionData.items;
+      state.delivery = buildDelivery(state.summary, state.preset);
+      state.settings = buildSettings(state.summary, state.health, state.preset);
 
-      var items = failures.items || [];
-      failureMetaEl.textContent = items.length + ' rows';
-      failureEl.innerHTML = items.map(function (row) {
-        return '<tr>' +
-          '<td>' + esc(fmtTime(row.timestamp)) + '</td>' +
-          '<td>' + eventPill(row.event) + '</td>' +
-          '<td class="mono">' + esc(row.recipient) + '</td>' +
-          '<td>' + esc(row.reason || row.enhanced_code || '-') + '</td>' +
-          '</tr>';
-      }).join('') || '<tr><td colspan="4">No recent failed or complained events.</td></tr>';
-
+      renderAll();
       setStatus('loaded ' + new Date().toLocaleTimeString());
     } catch (err) {
-      cardsEl.innerHTML = metric('Error', 'Failed');
-      healthEl.textContent = String(err && err.message ? err.message : err);
-      failureEl.innerHTML = '<tr><td colspan="4">Failed to load</td></tr>';
-      failureMetaEl.textContent = '';
+      overviewCardsEl.innerHTML = metric('Error', 'Failed');
+      healthJsonEl.textContent = String(err && err.message ? err.message : err);
+      failureRowsEl.innerHTML = '<tr><td colspan="5">Failed to load</td></tr>';
+      suppressionRowsEl.innerHTML = '<tr><td colspan="5">Failed to load</td></tr>';
+      settingsRowsEl.innerHTML = '<tr><td colspan="2">Failed to load</td></tr>';
+      settingsCheckRowsEl.innerHTML = '<tr><td colspan="3">Failed to load</td></tr>';
       setStatus('error');
     }
   }
 
+  suppressionRowsEl.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.classList.contains('table-action-btn')) return;
+
+    var email = target.getAttribute('data-remove-email') || '';
+    var type = target.getAttribute('data-remove-type') || '';
+    if (!email || !type) return;
+
+    state.suppressions = state.suppressions.filter(function (row) {
+      return !(row.email === email && row.type === type);
+    });
+
+    if (typeof state.suppressionTotals[type] === 'number' && state.suppressionTotals[type] > 0) {
+      state.suppressionTotals[type] -= 1;
+    }
+
+    renderSuppressions();
+    setStatus('suppression removed (mock)');
+  });
+
+  failureFilterEl.addEventListener('change', renderFailures);
+  suppressionFilterEl.addEventListener('change', renderSuppressions);
+
+  tabControls.forEach(function (control) {
+    control.addEventListener('click', function (event) {
+      event.preventDefault();
+      setActiveTab(control.getAttribute('data-tab-target'), true);
+    });
+  });
+
+  window.addEventListener('hashchange', function () {
+    setActiveTab(window.location.hash, false);
+  });
+
   presetEl.addEventListener('change', function () {
-    currentPreset = presetEl.value || 'healthy';
+    state.preset = presetEl.value || 'healthy';
     load();
   });
 
@@ -548,10 +720,10 @@
   refreshBtn.addEventListener('click', load);
 
   (async function bootstrap() {
-    setupBlurDebug();
-
+    state.basePath = getBasePath();
     await loadPresets();
-    currentPreset = presetEl.value || 'healthy';
+    state.preset = presetEl.value || 'healthy';
+    setActiveTab(window.location.hash || 'overview', false);
     updateAutoRefresh();
     load();
   })();
