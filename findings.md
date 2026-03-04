@@ -49,6 +49,21 @@ ports:
 Reference:
 - `docker-compose.example.yml`
 
+## 4) Ghost session verification used a public endpoint (FIXED)
+
+Risk:
+- `verifyGhostSession` was calling `/ghost/api/admin/site/` to check session validity.
+- The `/site/` endpoint is PUBLIC in Ghost — it returns 200 without authentication
+  (Ghost uses it to render the login page before the user signs in).
+- This means the email dashboard was accessible to anyone with any cookie on the domain.
+
+Fix:
+- Changed verification to use `/ghost/api/admin/users/me/` which requires a valid
+  admin session and returns 403/401 for unauthenticated requests.
+
+Reference:
+- `lib/admin-dashboard.js` (`buildGhostSessionVerifyUrl`, `verifyGhostSession`)
+
 ## Operational policy decision
 
 - Preferred mode for this project: Ghost admin session auth (cookie) only.
