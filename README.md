@@ -129,21 +129,21 @@ Run through this checklist after setup:
 
 ## Admin dashboard
 
-The bridge includes a simple dashboard for monitoring at `/ghost/email` (configurable via `ADMIN_BASE_PATH`).
+The bridge includes a simple dashboard for monitoring at `/ghost/mail` (configurable via `ADMIN_BASE_PATH`).
 
 It shows send summaries, failures, and poller status. Authentication uses your Ghost admin session by default. Just make sure `GHOST_ADMIN_URL` is set.
 
 For local styling/development work without a Ghost session, you can use demo mode:
 
 ```
-/ghost/email/?demo=1
+/ghost/mail/?demo=1
 ```
 
 If you're running behind Nginx, add a proxy rule:
 
 ```nginx
-location /ghost/email/ {
-  proxy_pass http://ghost-mail-bridge:3003/ghost/email/;
+location /ghost/mail/ {
+  proxy_pass http://ghost-mail-bridge:3003/ghost/mail/;
   proxy_set_header Host $host;
   proxy_set_header X-Forwarded-Proto $scheme;
   proxy_set_header Cookie $http_cookie;
@@ -196,7 +196,7 @@ A few things to be aware of:
 
 #### Dashboard API
 
-All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/email`).
+All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/mail`).
 
 | Method | Path | What it does |
 |--------|------|-------------|
@@ -248,7 +248,7 @@ All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/email`).
 | `MAX_FIELD_SIZE_BYTES` | `2097152` | Max field size (2 MB) |
 | `MAX_RECIPIENTS` | `50000` | Max recipients per request |
 | `MAX_CUSTOM_HEADERS` | `100` | Max `h:*` headers |
-| `ADMIN_BASE_PATH` | `/ghost/email` | Dashboard URL path |
+| `ADMIN_BASE_PATH` | `/ghost/mail` | Dashboard URL path |
 | `GHOST_ADMIN_URL` | *(empty)* | Ghost base URL for dashboard auth (required if using dashboard) |
 | `GHOST_ACCEPT_VERSION` | `v6.0` | Ghost Admin API version header |
 | `DB_PATH` | *(auto)* | Override SQLite path |
@@ -277,7 +277,7 @@ For dashboard-only work without AWS:
 
 ```bash
 DISABLE_SQS_POLLER=1 DISABLE_ADMIN_AUTH=1 npm run dev
-# Then open /ghost/email/?demo=1
+# Then open /ghost/mail/?demo=1
 ```
 
 ---
