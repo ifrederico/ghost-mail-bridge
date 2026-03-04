@@ -1,0 +1,45 @@
+name: Deploy demo dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/admin-dashboard-assets/**'
+      - 'site/**'
+      - '.github/workflows/demo.yml'
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site structure
+        run: |
+          mkdir -p _site/ghost/mail _site/docs
+          cp site/index.html site/index.md _site/
+          cp site/ghost/index.html _site/ghost/index.html
+          cp site/docs/index.html site/docs/index.md site/docs/docs.css _site/docs/
+          cp -r lib/admin-dashboard-assets/* _site/ghost/mail/
+          sed -i 's|<head>|<head><script>if(!location.search.includes("demo="))history.replaceState(null,"",location.pathname+"?demo=1"+location.hash);</script>|' \
+            _site/ghost/mail/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
