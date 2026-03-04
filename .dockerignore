@@ -6,3 +6,5 @@ data
 *.md
 docker-compose*.yml
 LICENSE
+site
+.github
