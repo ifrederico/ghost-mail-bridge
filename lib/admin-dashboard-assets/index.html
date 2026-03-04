@@ -159,6 +159,7 @@
                       <path d="M3 10h18"></path>
                     </svg>
                     <select id="period-select" class="field-select period-select" aria-label="Select period">
+                      <option value="24h">Last 24 hours</option>
                       <option value="7d">Last 7 days</option>
                       <option value="30d" selected>Last 30 days</option>
                       <option value="90d">Last 90 days</option>
@@ -205,21 +206,17 @@
               <section class="tab-panel" data-tab-panel="delivery">
                 <section class="panel delivery-insights" id="delivery-insights"></section>
                 <section class="panel">
-                  <div class="panel-head">
-                    <span id="delivery-timeline-title">Timeline</span>
-                    <span id="delivery-timeline-meta" class="panel-meta">Last 30 days</span>
-                  </div>
                   <table>
                     <thead>
                       <tr>
-                        <th id="delivery-timeline-col">Date</th>
-                        <th>Sent</th>
-                        <th>Delivered</th>
-                        <th>Opened</th>
-                        <th>Clicked</th>
-                        <th>Failed</th>
-                        <th>Complained</th>
-                        <th>Volume</th>
+                        <th>
+                          <span class="th-title" id="delivery-timeline-title">Timeline</span>
+                          <span class="th-subtitle" id="delivery-timeline-meta">Last 30 days</span>
+                        </th>
+                        <th class="align-right">Sent</th>
+                        <th class="align-right">Opened</th>
+                        <th class="align-right">Clicked</th>
+                        <th class="align-right">Failed</th>
                       </tr>
                     </thead>
                     <tbody id="delivery-rows"></tbody>
@@ -234,13 +231,19 @@
                   <div class="panel-head">
                     <span>Failure reasons</span>
                     <div class="panel-actions">
-                      <label for="failure-filter">Type</label>
-                      <select id="failure-filter" class="field-select">
-                        <option value="all">All</option>
-                        <option value="failed">Failed</option>
-                        <option value="complained">Complained</option>
-                      </select>
-                      <span id="failure-meta" class="panel-meta"></span>
+                      <div class="select-wrap">
+                        <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        <select id="failure-filter" class="field-select styled-select">
+                          <option value="all">All</option>
+                          <option value="failed">Failed</option>
+                          <option value="complained">Complained</option>
+                        </select>
+                        <svg class="select-caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="m6 9 6 6 6-6"></path>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <table>
@@ -279,14 +282,20 @@
                   <div class="panel-head">
                     <span>Suppression list</span>
                     <div class="panel-actions">
-                      <label for="suppression-filter">Type</label>
-                      <select id="suppression-filter" class="field-select">
-                        <option value="all">All</option>
-                        <option value="bounces">Bounces</option>
-                        <option value="complaints">Complaints</option>
-                        <option value="unsubscribes">Unsubscribes</option>
-                      </select>
-                      <span id="suppression-meta" class="panel-meta"></span>
+                      <div class="select-wrap">
+                        <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        <select id="suppression-filter" class="field-select styled-select">
+                          <option value="all">All</option>
+                          <option value="bounces">Bounces</option>
+                          <option value="complaints">Complaints</option>
+                          <option value="unsubscribes">Unsubscribes</option>
+                        </select>
+                        <svg class="select-caret" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="m6 9 6 6 6-6"></path>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                   <table>
