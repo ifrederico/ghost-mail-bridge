@@ -57,6 +57,9 @@ var server = app.listen(config.port, function() {
     console.log('  Admin auth: DISABLED (DISABLE_ADMIN_AUTH=1)');
   } else if (config.ghostAdminUrl) {
     console.log('  Admin auth: Ghost session via ' + config.ghostAdminUrl);
+    if (config.allowInsecureGhostAdminUrl) {
+      console.warn('  Admin auth warning: insecure Ghost admin URL override enabled');
+    }
   } else {
     console.log('  Admin auth: DISABLED (set GHOST_ADMIN_URL)');
   }

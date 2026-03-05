@@ -106,6 +106,8 @@ services:
 
 That's it. Ghost doesn't know the difference.
 
+Ghost and `ghost-mail-bridge` should be on the same Docker network. If you are migrating an existing Ghost install that was already configured for Mailgun, update the stored `mailgun_base_url` once so Ghost stops calling the old host.
+
 ## Verify setup
 
 Run through this checklist after setup:
@@ -120,7 +122,7 @@ Run through this checklist after setup:
 
 The bridge includes a dashboard for monitoring at `/ghost/mail` (configurable via `ADMIN_BASE_PATH`). It shows send summaries, delivery rates, failures, and poller status.
 
-Authentication uses your Ghost admin session by default. Make sure `GHOST_ADMIN_URL` is set.
+Authentication uses your Ghost admin session by default. Set `GHOST_ADMIN_URL` to your Ghost HTTPS URL.
 
 [View the live demo →](../ghost/mail/?demo=1)
 
@@ -186,7 +188,8 @@ Make sure your SQS policy only allows your SNS topic to publish to it (`aws:Sour
 | `SEND_CONCURRENCY` | `10` | Max parallel SES sends |
 | `SUPPRESSION_RETENTION_DAYS` | `0` | Suppression retention (`0` = forever) |
 | `ADMIN_BASE_PATH` | `/ghost/mail` | Dashboard URL path |
-| `GHOST_ADMIN_URL` | *empty* | Ghost base URL for dashboard auth |
+| `GHOST_ADMIN_URL` | *empty* | Ghost HTTPS base URL for dashboard auth |
+| `ALLOW_INSECURE_GHOST_ADMIN_URL` | `false` | Allow `http://` Ghost admin URL only for trusted local/private setups |
 | `DB_PATH` | *auto* | Override SQLite path |
 
 <details>

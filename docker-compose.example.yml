@@ -21,5 +21,6 @@ services:
       - ADMIN_BASE_PATH=${ADMIN_BASE_PATH:-/ghost/mail}
       # Dashboard auth (cookie session verification)
       - GHOST_ADMIN_URL=${GHOST_ADMIN_URL:-}
+      - ALLOW_INSECURE_GHOST_ADMIN_URL=${ALLOW_INSECURE_GHOST_ADMIN_URL:-}
       - GHOST_ACCEPT_VERSION=${GHOST_ACCEPT_VERSION:-v6.0}
     restart: unless-stopped

@@ -14,7 +14,7 @@ Fix:
 - Set these env vars explicitly:
 
 ```env
-GHOST_ADMIN_URL=http://yourdomain.com
+GHOST_ADMIN_URL=https://yourdomain.com
 GHOST_ACCEPT_VERSION=v6.0
 ```
 
