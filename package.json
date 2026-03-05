@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "node --watch --env-file=.env server.js",
     "lint": "eslint .",
-    "ghost:sync-mailgun-settings": "bash scripts/sync-ghost-mailgun-settings.sh"
+    "ghost:sync-mailgun-settings": "bash scripts/sync-ghost-mailgun-settings.sh",
+    "ghost:reset-mailgun-settings": "bash scripts/reset-ghost-mailgun-settings.sh"
   },
   "engines": {
     "node": ">=20"

@@ -119,10 +119,25 @@ Ghost and `ghost-mail-bridge` should be on the same Docker network. If you are m
 For Docker-based Ghost installs, you can use the migration helper instead of opening the database manually:
 
 ```bash
+bash scripts/sync-ghost-mailgun-settings.sh
+```
+
+Optional convenience alias:
+
+```bash
 npm run ghost:sync-mailgun-settings
 ```
 
 It reads the existing Ghost DB credentials from the running Ghost container, updates the stored Mailgun settings to `http://ghost-mail-bridge:3003/v3`, and restarts Ghost. This is optional and mainly useful for migrations.
+
+If you ever want to switch the stored settings back to Mailgun, run:
+
+```bash
+MAILGUN_BASE_URL=https://api.mailgun.net/v3 \
+MAILGUN_API_KEY=your-real-mailgun-api-key \
+MAILGUN_DOMAIN=mg.yourdomain.com \
+bash scripts/reset-ghost-mailgun-settings.sh
+```
 
 ---
 
