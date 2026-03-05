@@ -48,7 +48,8 @@ Open `.env` and fill in your AWS credentials and settings. At minimum you'll nee
 - `PROXY_API_KEY` — the API key Ghost will use to authenticate (you pick this)
 - `MAILGUN_DOMAIN` — the domain value Ghost sends (e.g., `mg.yourdomain.com`)
 
-See [Configuration variables](#configuration-variables) for the full list of options.
+See [Configuration variables](#configuration-variables) for quick-start options.
+For advanced tuning, see [Advanced configuration](./site/docs/advanced-config.md).
 
 ### 2. Start the bridge
 
@@ -239,19 +240,17 @@ All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/mail`).
 | `PORT` | `3003` | HTTP port |
 | `LOG_LEVEL` | `info` | Set `debug` for per-recipient logs |
 | `SEND_CONCURRENCY` | `10` | Max parallel SES sends |
-| `SES_SEND_MAX_RETRIES` | `3` | Retries per recipient |
-| `SES_RETRY_BASE_MS` | `500` | Base backoff (ms) |
-| `SES_RETRY_MAX_MS` | `10000` | Max backoff cap (ms) |
 | `SUPPRESSION_RETENTION_DAYS` | `0` | Suppression retention (`0` = forever) |
-| `MAX_REQUEST_BYTES` | `10485760` | Max request size (10 MB) |
-| `MAX_FORM_FIELDS` | `2000` | Max multipart fields |
-| `MAX_FIELD_SIZE_BYTES` | `2097152` | Max field size (2 MB) |
-| `MAX_RECIPIENTS` | `50000` | Max recipients per request |
-| `MAX_CUSTOM_HEADERS` | `100` | Max `h:*` headers |
 | `ADMIN_BASE_PATH` | `/ghost/mail` | Dashboard URL path |
 | `GHOST_ADMIN_URL` | *(empty)* | Ghost base URL for dashboard auth (required if using dashboard) |
-| `GHOST_ACCEPT_VERSION` | `v6.0` | Ghost Admin API version header |
 | `DB_PATH` | *(auto)* | Override SQLite path |
+
+<details>
+<summary>Advanced configuration (optional)</summary>
+
+For retry/backoff tuning, request-size limits, Ghost Admin API compatibility overrides, and local dev/testing switches, see [Advanced configuration](./site/docs/advanced-config.md) and [`.env.advanced.example`](./.env.advanced.example).
+
+</details>
 
 ### Storage
 
@@ -273,12 +272,7 @@ npm install
 npm run dev    # loads .env automatically
 ```
 
-For dashboard-only work without AWS:
-
-```bash
-DISABLE_SQS_POLLER=1 DISABLE_ADMIN_AUTH=1 npm run dev
-# Then open /ghost/mail/?demo=1
-```
+For dashboard-only work without AWS, use the local dev/testing switches documented in [Advanced configuration](./site/docs/advanced-config.md).
 
 ---
 

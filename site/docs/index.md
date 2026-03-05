@@ -184,11 +184,17 @@ Make sure your SQS policy only allows your SNS topic to publish to it (`aws:Sour
 | `PORT` | `3003` | HTTP port |
 | `LOG_LEVEL` | `info` | Set `debug` for per-recipient logs |
 | `SEND_CONCURRENCY` | `10` | Max parallel SES sends |
-| `SES_SEND_MAX_RETRIES` | `3` | Retries per recipient |
 | `SUPPRESSION_RETENTION_DAYS` | `0` | Suppression retention (`0` = forever) |
 | `ADMIN_BASE_PATH` | `/ghost/mail` | Dashboard URL path |
 | `GHOST_ADMIN_URL` | *empty* | Ghost base URL for dashboard auth |
 | `DB_PATH` | *auto* | Override SQLite path |
+
+<details>
+<summary>Advanced configuration (optional)</summary>
+
+For retry/backoff tuning, request-size limits, Ghost Admin API compatibility overrides, and local dev/testing switches, see [Advanced configuration](./advanced-config.html) and [`.env.advanced.example` on GitHub](https://github.com/ifrederico/ghost-mail-bridge/blob/main/.env.advanced.example).
+
+</details>
 
 ## API endpoints
 
