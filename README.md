@@ -116,6 +116,14 @@ That's it. Ghost doesn't know the difference.
 
 Ghost and `ghost-mail-bridge` should be on the same Docker network. If you are migrating an existing Ghost install that was already configured for Mailgun, update the stored `mailgun_base_url` once so Ghost stops calling the old host.
 
+For Docker-based Ghost installs, you can use the migration helper instead of opening the database manually:
+
+```bash
+npm run ghost:sync-mailgun-settings
+```
+
+It reads the existing Ghost DB credentials from the running Ghost container, updates the stored Mailgun settings to `http://ghost-mail-bridge:3003/v3`, and restarts Ghost. This is optional and mainly useful for migrations.
+
 ---
 
 ## Verify everything works
