@@ -285,6 +285,7 @@ You'll need these AWS resources:
 The IAM user/role for the bridge needs these permissions:
 
 - `ses:SendRawEmail`
+- `ses:GetAccount` if you want `/ghost/mail` to show SES sandbox/account status
 - `sqs:SendMessage` on the newsletter send queue
 - `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes` on the newsletter send queue and SES event queue
 

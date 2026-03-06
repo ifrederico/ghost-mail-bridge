@@ -15,6 +15,7 @@ var handleDeleteSuppression = require('./lib/suppression-api');
 var { createAdminRouter } = require('./lib/admin-dashboard');
 var { startPolling, getPollerState } = require('./lib/sqs-poller');
 var { startNewsletterWorker, getWorkerState } = require('./lib/newsletter-worker');
+var { getSesAccountStatus } = require('./lib/ses-account');
 
 var instanceId = crypto.randomUUID();
 
@@ -68,7 +69,8 @@ async function bootstrap() {
     app.get('/health', withAsync(async function(_req, res) {
       res.json({
         status: 'ok',
-        tables: await getTableCounts()
+        tables: await getTableCounts(),
+        sesAccount: await getSesAccountStatus()
       });
     }));
 

@@ -222,6 +222,7 @@ Example policy shape:
 The bridge needs:
 
 - `ses:SendRawEmail`
+- `ses:GetAccount` if you want the dashboard to show SES sandbox/account status
 - `sqs:SendMessage`
 - `sqs:ReceiveMessage`
 - `sqs:DeleteMessage`

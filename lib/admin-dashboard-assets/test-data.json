@@ -54,6 +54,20 @@
         "sesEvents": ""
       }
     },
+    "sesAccount": {
+      "available": true,
+      "mode": "production",
+      "productionAccessEnabled": true,
+      "sendingEnabled": true,
+      "enforcementStatus": "HEALTHY",
+      "checkedAt": "2026-03-03T11:59:30.000Z",
+      "error": "",
+      "sendQuota": {
+        "max24HourSend": 50000,
+        "maxSendRate": 14,
+        "sentLast24Hours": 42890
+      }
+    },
     "worker": {
       "isRunning": true,
       "lastPollStartedAt": "2026-03-03T11:59:31.000Z",
