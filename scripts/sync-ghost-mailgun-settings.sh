@@ -76,7 +76,7 @@ fi
 
 if [ -n "$CURRENT_BULK_ENV" ]; then
   printf 'Ghost already has bulkEmail__mailgun__baseUrl set in env/config: %s\n' "$CURRENT_BULK_ENV"
-  printf 'This script updates Ghost''s stored Mailgun settings for migration compatibility.\n'
+  printf 'This script updates Ghost'\''s stored Mailgun settings for migration compatibility.\n'
 fi
 
 SQL=$(cat <<SQL

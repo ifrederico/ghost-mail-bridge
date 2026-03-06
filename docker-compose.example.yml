@@ -1,7 +1,6 @@
 services:
   mysql:
-    image: mysql:8.4
-    command: --default-authentication-plugin=mysql_native_password
+    image: mysql:8.0.44@sha256:f37951fc3753a6a22d6c7bf6978c5e5fefcf6f31814d98c582524f98eae52b21
     environment:
       MYSQL_DATABASE: ghost_mail_bridge
       MYSQL_USER: ghost_mail_bridge
@@ -47,6 +46,14 @@ services:
       GHOST_ACCEPT_VERSION: ${GHOST_ACCEPT_VERSION:-v6.0}
       APP_ROLE: api
     restart: unless-stopped
+    # If Ghost runs in a separate Docker Compose project, attach only the API
+    # service to Ghost's external network so Ghost can call
+    # http://ghost-mail-bridge:3003/v3 over the internal Docker network.
+    #
+    # Example:
+    # networks:
+    #   - default
+    #   - ghost_network
 
   ghost-mail-bridge-worker:
     build: .
@@ -64,3 +71,12 @@ services:
 
 volumes:
   mysql-data:
+
+# Uncomment for a sidecar install next to the official ghost-docker stack.
+# Detect the real network name with:
+#   docker network ls --format '{{.Name}}' | grep ghost_network
+#
+# networks:
+#   ghost_network:
+#     external: true
+#     name: your_real_ghost_network_name

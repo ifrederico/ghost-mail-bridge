@@ -1,8 +1,13 @@
 # Merge this into the same site block that fronts Ghost.
 #
-# Ghost can talk to the bridge directly over localhost:
+# Host/systemd install:
 #   bulkEmail__mailgun__baseUrl=http://127.0.0.1:3003/v3
 #
+# Ghost Docker sidecar install:
+#   bulkEmail__mailgun__baseUrl=http://ghost-mail-bridge:3003/v3
+#   reverse_proxy ghost-mail-bridge:3003
+#
+# In both cases, Ghost should talk to the bridge over the internal network.
 # Caddy only needs to expose the dashboard path for browsers.
 
 handle /ghost/mail* {

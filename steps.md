@@ -29,21 +29,35 @@ Use AWS SES for:
 
 Without changing Ghost source code.
 
+## Tested install shape
+
+This is the install path we validated on a live Ubuntu 24 server:
+
+```text
+/opt/ghost               # official ghost-docker install
+/opt/ghost-mail-bridge   # bridge repo + separate compose stack
+```
+
+The bridge branch used during validation was:
+
+```text
+codex/queue-first-bridge
+```
+
 ## Current scope
 
 This version of the bridge:
 
-- sends newsletter batches inline during the Ghost request
-- queues and processes SES delivery events asynchronously through SNS -> SQS
+- keeps Ghost's Mailgun-compatible API surface
+- queues newsletter sends immediately into SQS
+- processes newsletter sends asynchronously in a worker
+- processes SES delivery/open/click/bounce/complaint events asynchronously through SNS -> SQS
 
 That means:
 
-- event tracking is already queue-based
-- newsletter sending itself is not yet queue-first
-
-For most self-hosted small/medium publications, that is acceptable.
-
-If larger publications start hitting Ghost timeouts during newsletter send, a future version could move newsletter sending itself to a background queue.
+- Ghost gets an immediate `Queued. Thank you.` style response
+- large newsletters no longer block Ghost on inline SES work
+- the tested install path is the official `ghost-docker` stack in `/opt/ghost` plus a separate `/opt/ghost-mail-bridge` stack
 
 ## 1. AWS Setup
 
@@ -98,17 +112,24 @@ Suggested new topic name:
 ghost-mail-bridge-events
 ```
 
-### 1.4 Create an SQS queue
+### 1.4 Create the SQS queues
 
-Create an SQS queue and subscribe it to the SNS topic.
+Create:
 
-Suggested new queue name:
+- an SQS queue subscribed to the SNS topic for SES events
+- a dedicated SQS send queue for newsletter jobs
+- an optional send DLQ if you want safer ops
+
+Suggested event queue name:
 
 ```text
 ghost-mail-bridge-events
 ```
 
-Also create a DLQ if you want safer operations.
+Suggested send queue names:
+
+- `ghost-mail-bridge-send`
+- `ghost-mail-bridge-send-dlq`
 
 Suggested new-name shape:
 
@@ -116,8 +137,10 @@ Suggested new-name shape:
   - `ghost-mail-bridge-events`
 - SQS queue:
   - `ghost-mail-bridge-events`
-- SQS dead-letter queue:
-  - `ghost-mail-bridge-events-dlq`
+- SQS send queue:
+  - `ghost-mail-bridge-send`
+- SQS send dead-letter queue:
+  - `ghost-mail-bridge-send-dlq`
 
 There should be an SNS subscription from the topic to the main SQS queue.
 
@@ -199,6 +222,7 @@ Example policy shape:
 The bridge needs:
 
 - `ses:SendRawEmail`
+- `sqs:SendMessage`
 - `sqs:ReceiveMessage`
 - `sqs:DeleteMessage`
 - `sqs:GetQueueAttributes`
@@ -226,14 +250,28 @@ Example policy shape:
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "BridgeConsumeSqs",
+      "Sid": "BridgeSendQueue",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:SendMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl"
+      ],
+      "Resource": "arn:aws:sqs:REGION:ACCOUNT_ID:your-real-send-queue-name"
+    },
+    {
+      "Sid": "BridgeConsumeQueues",
       "Effect": "Allow",
       "Action": [
         "sqs:ReceiveMessage",
         "sqs:DeleteMessage",
-        "sqs:GetQueueAttributes"
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl"
       ],
-      "Resource": "arn:aws:sqs:REGION:ACCOUNT_ID:your-real-sqs-queue-name"
+      "Resource": [
+        "arn:aws:sqs:REGION:ACCOUNT_ID:your-real-events-queue-name",
+        "arn:aws:sqs:REGION:ACCOUNT_ID:your-real-send-queue-name"
+      ]
     },
     {
       "Sid": "BridgeSendIdentity",
@@ -261,9 +299,11 @@ Example policy shape:
 
 Change the ARN values to match your real AWS names.
 
-### 1.8 SQS queue policy
+### 1.8 SNS topic policy and SQS queue policy
 
-Your SQS queue policy should allow only your SNS topic to publish into it.
+Your SNS topic policy should allow `ses.amazonaws.com` to publish to the topic for your account.
+
+Your SQS event queue policy should allow only your SNS topic to publish into it.
 
 At minimum, scope the policy using:
 
@@ -315,22 +355,32 @@ They are not part of the required bridge setup.
 ### 2.1 Clone and configure
 
 ```bash
-git clone https://github.com/ifrederico/ghost-mail-bridge.git
-cd ghost-mail-bridge
+git clone https://github.com/ifrederico/ghost-mail-bridge.git /opt/ghost-mail-bridge
+cd /opt/ghost-mail-bridge
+git checkout codex/queue-first-bridge
 cp .env.example .env
+cp docker-compose.example.yml docker-compose.yml
+```
+
+Generate a bridge API key:
+
+```bash
+openssl rand -hex 32
 ```
 
 Set at least:
 
 ```env
+DATABASE_URL=mysql://ghost_mail_bridge:ghost_mail_bridge@mysql:3306/ghost_mail_bridge
+MAILGUN_DOMAIN=your-domain.com
+GHOST_ADMIN_URL=https://yourdomain.com
+PROXY_API_KEY=choose-a-random-secret
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 AWS_REGION=us-east-1
-SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/123456789012/your-real-sqs-queue-name
+SES_EVENTS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/123456789012/your-real-events-queue
+NEWSLETTER_SEND_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/123456789012/your-real-send-queue
 SES_CONFIGURATION_SET=your-real-configuration-set-name
-PROXY_API_KEY=choose-a-random-secret
-MAILGUN_DOMAIN=your-domain.com
-GHOST_ADMIN_URL=https://yourdomain.com
 ADMIN_BASE_PATH=/ghost/mail
 ```
 
@@ -347,8 +397,31 @@ Recommended screenshot:
 ### 2.2 Start the bridge
 
 ```bash
-cp docker-compose.example.yml docker-compose.yml
+cd /opt/ghost-mail-bridge
 docker compose up -d
+```
+
+If Ghost is running in a separate Docker Compose project, attach only the `ghost-mail-bridge` API service to Ghost's external Docker network so Ghost can call `http://ghost-mail-bridge:3003/v3`.
+
+Detect Ghost's real network name:
+
+```bash
+docker network ls --format '{{.Name}}' | grep ghost_network
+```
+
+Then update `/opt/ghost-mail-bridge/docker-compose.yml`:
+
+```yaml
+services:
+  ghost-mail-bridge:
+    networks:
+      - default
+      - ghost_network
+
+networks:
+  ghost_network:
+    external: true
+    name: your_real_ghost_network_name
 ```
 
 ### 2.3 Confirm health
@@ -360,7 +433,7 @@ curl http://localhost:3003/health
 Expected:
 
 ```json
-{"status":"ok","tables":{"message_map":0,"recipient_emails":0,"events":0,"suppressions":0}}
+{"status":"ok","tables":{"batches":0,"send_jobs":0,"recipient_emails":0,"events":0,"suppressions":0}}
 ```
 
 ## 3. Ghost Setup
@@ -412,9 +485,46 @@ Recommended screenshot:
 
 - Ghost newsletter env section showing `bulkEmail__mailgun__baseUrl`
 
-### 3.3 Restart Ghost
+### 3.3 Dashboard route
 
-After setting those values, restart Ghost.
+If you use the official Ghost Docker stack, Caddy already fronts the public domain and is already on Ghost's Docker network. Add this route before the default Ghost proxy in `/opt/ghost/caddy/Caddyfile`:
+
+```caddy
+handle /ghost/mail* {
+	reverse_proxy ghost-mail-bridge:3003
+}
+```
+
+The dashboard is the only bridge path that needs public proxying. Keep `/v3` internal between Ghost and the bridge.
+
+### 3.4 Restart Ghost and Caddy
+
+After setting those values, restart Ghost and the proxy if needed.
+
+For the official `ghost-docker` stack, the tested commands were:
+
+```bash
+cd /opt/ghost
+docker compose up -d --force-recreate caddy ghost
+```
+
+Also make sure the `ghost` service in `/opt/ghost/compose.yml` joins the bridge network:
+
+```yaml
+    networks:
+      - ghost_network
+      - ghost_mail_bridge_network
+```
+
+And define the external bridge network at the bottom of `/opt/ghost/compose.yml`:
+
+```yaml
+networks:
+  ghost_network:
+  ghost_mail_bridge_network:
+    external: true
+    name: your_real_ghost_network_name
+```
 
 ## 4. Migration Case
 
@@ -429,6 +539,7 @@ That can cause Ghost to keep calling the old Mailgun host even after you update 
 Run:
 
 ```bash
+cd /opt/ghost-mail-bridge
 bash scripts/sync-ghost-mailgun-settings.sh
 ```
 
@@ -447,7 +558,7 @@ What it does:
   - `mailgun_domain`
 - restarts Ghost
 
-This is only for migration/fixup.
+This is only for migration/fixup, but in practice it should be treated as part of install and upgrade hygiene.
 
 Recommended screenshot:
 
@@ -539,6 +650,7 @@ Send a real Ghost test newsletter and verify:
 - recipient receives email
 - open event appears
 - click event appears
+- new rows appear in `batches`, `send_jobs`, and `recipient_emails`
 
 ### 7.4 Bridge checks
 
@@ -548,6 +660,27 @@ Useful commands:
 docker compose ps
 docker logs --tail 100 ghost-mail-bridge
 curl http://localhost:3003/health
+```
+
+Useful DB check after a Ghost test send:
+
+```bash
+docker exec ghost-mail-bridge-mysql-1 mysql -ughost_mail_bridge -pghost_mail_bridge ghost_mail_bridge -e "
+SELECT id, batch_message_id, status, total_recipients, queued_recipients, processing_recipients, sent_recipients, failed_recipients, last_error, created_at
+FROM batches
+ORDER BY created_at DESC
+LIMIT 5;
+
+SELECT id, batch_id, status, total_recipients, sent_recipients, failed_recipients, attempt_count, last_error, updated_at
+FROM send_jobs
+ORDER BY updated_at DESC
+LIMIT 5;
+
+SELECT recipient, batch_message_id, created_at
+FROM recipient_emails
+ORDER BY created_at DESC
+LIMIT 5;
+"
 ```
 
 If the service name is Docker-generated, use:

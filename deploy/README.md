@@ -1,5 +1,8 @@
 # Isolated install
 
+This guide is for a host/systemd-style install where the bridge runs directly on the host.
+If you're running the official Ghost Docker stack in `/opt/ghost` and want the bridge beside it in `/opt/ghost-mail-bridge`, follow the Docker sidecar flow in [README.md](../README.md).
+
 This layout is designed to feel like a self-hosted Ghost install:
 
 ```text

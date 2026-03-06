@@ -44,12 +44,13 @@ cp .env.example .env
 
 Open `.env` and fill in your AWS credentials and settings. At minimum you'll need:
 
-- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 - `DATABASE_URL` — MySQL connection string for the bridge
+- `MAILGUN_DOMAIN` — the domain value Ghost sends (for example `yourdomain.com`)
+- `PROXY_API_KEY` — the API key Ghost will use to authenticate (you pick this)
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 - `SES_EVENTS_QUEUE_URL` — your SQS queue that receives SES events
 - `NEWSLETTER_SEND_QUEUE_URL` — your dedicated SQS queue for outbound newsletter jobs
-- `PROXY_API_KEY` — the API key Ghost will use to authenticate (you pick this)
-- `MAILGUN_DOMAIN` — the domain value Ghost sends (e.g., `mg.yourdomain.com`)
+- `GHOST_ADMIN_URL` — recommended if you want Ghost session auth on `/ghost/mail`
 
 See [Configuration variables](#configuration-variables) for quick-start options.
 For advanced tuning, see [Advanced configuration](./site/docs/advanced-config.md).
@@ -95,7 +96,14 @@ You should see something like:
 
 ### 4. Point Ghost at the bridge
 
-In your Ghost service config (e.g., `docker-compose.yml`), set up both email lanes:
+Ghost uses two lanes:
+
+- transactional mail goes straight to SES SMTP
+- newsletter mail goes to the bridge over Docker's internal network
+
+#### Same Docker Compose project
+
+If Ghost and the bridge are in the same Compose project, set up both email lanes in your Ghost service config:
 
 ```yaml
 services:
@@ -116,7 +124,80 @@ services:
       bulkEmail__mailgun__domain: ${MAILGUN_DOMAIN}
 ```
 
-That's it. Ghost doesn't know the difference.
+#### Official `ghost-docker` sidecar install
+
+If Ghost is running from the official `ghost-docker` stack in `/opt/ghost` and the bridge is running separately in `/opt/ghost-mail-bridge`, use this tested pattern:
+
+1. Attach only the bridge API service to Ghost's existing Docker network.
+
+Detect the real network name:
+
+```bash
+docker network ls --format '{{.Name}}' | grep ghost_network
+```
+
+Then update `/opt/ghost-mail-bridge/docker-compose.yml` so `ghost-mail-bridge` joins that external network:
+
+```yaml
+services:
+  ghost-mail-bridge:
+    networks:
+      - default
+      - ghost_network
+
+networks:
+  ghost_network:
+    external: true
+    name: your_real_ghost_network_name
+```
+
+2. Set Ghost's transactional SMTP lane in `/opt/ghost/.env`:
+
+```env
+mail__transport=SMTP
+mail__from="Your Site <hello@yourdomain.com>"
+mail__options__host=email-smtp.YOUR_AWS_REGION.amazonaws.com
+mail__options__port=587
+mail__options__secure=false
+mail__options__auth__user=YOUR_SES_SMTP_USERNAME
+mail__options__auth__pass=YOUR_SES_SMTP_PASSWORD
+```
+
+3. Set Ghost's newsletter lane in `/opt/ghost/.env`:
+
+```env
+bulkEmail__mailgun__baseUrl=http://ghost-mail-bridge:3003/v3
+bulkEmail__mailgun__apiKey=your-secure-api-key-here
+bulkEmail__mailgun__domain=yourdomain.com
+```
+
+4. Expose the bridge dashboard in `/opt/ghost/caddy/Caddyfile` before the default Ghost proxy:
+
+```caddy
+handle /ghost/mail* {
+	reverse_proxy ghost-mail-bridge:3003
+}
+
+handle {
+	reverse_proxy ghost:2368
+}
+```
+
+5. Restart Caddy and Ghost:
+
+```bash
+cd /opt/ghost
+docker compose up -d --force-recreate caddy ghost
+```
+
+6. Sync Ghost's stored Mailgun settings once so old DB values do not override the new bridge target:
+
+```bash
+cd /opt/ghost-mail-bridge
+bash scripts/sync-ghost-mailgun-settings.sh
+```
+
+Ghost should continue calling the bridge internally at `http://ghost-mail-bridge:3003/v3`. You do not need to expose `/v3` publicly.
 
 Ghost and `ghost-mail-bridge` should be on the same Docker network. If you are migrating an existing Ghost install that was already configured for Mailgun, update the stored `mailgun_base_url` once so Ghost stops calling the old host.
 
@@ -132,7 +213,7 @@ Optional convenience alias:
 npm run ghost:sync-mailgun-settings
 ```
 
-It reads the existing Ghost DB credentials from the running Ghost container, updates the stored Mailgun settings to `http://ghost-mail-bridge:3003/v3`, and restarts Ghost. This is optional and mainly useful for migrations.
+It reads the existing Ghost DB credentials from the running Ghost container, updates the stored Mailgun settings to `http://ghost-mail-bridge:3003/v3`, and restarts Ghost. Treat it as part of install and upgrade hygiene for migrated sites or any Ghost instance that previously pointed at Mailgun.
 
 If you ever want to switch the stored settings back to Mailgun, run:
 
@@ -167,6 +248,8 @@ The bridge includes a simple dashboard for monitoring at `/ghost/mail` (configur
 
 It shows send summaries, queued/processing/failed batch counts, worker status, and SES-event poller status. Authentication uses your Ghost admin session by default. Set `GHOST_ADMIN_URL` to your Ghost HTTPS URL.
 
+If you're using the official Ghost Docker stack, Caddy must proxy `/ghost/mail*` to `ghost-mail-bridge:3003` before the default Ghost route. The bridge dashboard is the only path that needs public proxying. Keep `/v3` internal between Ghost and the bridge.
+
 For local styling/development work without a Ghost session, you can use demo mode:
 
 ```
@@ -194,8 +277,10 @@ You'll need these AWS resources:
 2. **SNS** — a topic that SES publishes events to
 3. **SQS (events)** — a queue subscribed to that SNS topic for SES delivery/open/click/bounce/complaint events
 4. **SQS (newsletter send)** — a dedicated outbound queue for newsletter batch jobs
-5. **SQS DLQ (recommended)** — a dead-letter queue for newsletter send failures
+5. **SQS DLQ (optional)** — useful for operations, but not required for the app to run
 6. **MySQL** — a dedicated bridge database (preferred over sharing Ghost’s DB)
+7. **Bridge IAM user** — AWS API credentials for SES + SQS
+8. **SES SMTP credentials** — separate credentials for Ghost transactional mail
 
 The IAM user/role for the bridge needs these permissions:
 
@@ -203,7 +288,12 @@ The IAM user/role for the bridge needs these permissions:
 - `sqs:SendMessage` on the newsletter send queue
 - `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes` on the newsletter send queue and SES event queue
 
-Make sure your SQS policy only allows your SNS topic to publish to it (`aws:SourceArn`).
+Make sure:
+
+- your SNS topic policy allows `ses.amazonaws.com` to publish to the topic
+- your SQS queue policy only allows your SNS topic to publish to it (`aws:SourceArn`)
+- SES, SNS, SQS, and credentials all use the same AWS region
+- if your SES account is still in sandbox, test sends must go only to verified recipients or mailbox simulator addresses
 
 ---
 
