@@ -1,26 +1,66 @@
 services:
+  mysql:
+    image: mysql:8.4
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: ghost_mail_bridge
+      MYSQL_USER: ghost_mail_bridge
+      MYSQL_PASSWORD: ghost_mail_bridge
+      MYSQL_ROOT_PASSWORD: change-me
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   ghost-mail-bridge:
     build: .
     # Or use a pre-built image:
     # image: ghcr.io/ifrederico/ghost-mail-bridge:latest
+    depends_on:
+      mysql:
+        condition: service_healthy
     ports:
       - "127.0.0.1:3003:3003"
-    volumes:
-      - ./data:/data
-    environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
-      - SES_CONFIGURATION_SET=${SES_CONFIGURATION_SET:-ghost-mail-bridge}
-      - PROXY_API_KEY=${PROXY_API_KEY}
-      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - SEND_CONCURRENCY=${SEND_CONCURRENCY:-10}
-      - SUPPRESSION_RETENTION_DAYS=${SUPPRESSION_RETENTION_DAYS:-0}
-      - ADMIN_BASE_PATH=${ADMIN_BASE_PATH:-/ghost/mail}
-      # Dashboard auth (cookie session verification)
-      - GHOST_ADMIN_URL=${GHOST_ADMIN_URL:-}
-      - ALLOW_INSECURE_GHOST_ADMIN_URL=${ALLOW_INSECURE_GHOST_ADMIN_URL:-}
-      - GHOST_ACCEPT_VERSION=${GHOST_ACCEPT_VERSION:-v6.0}
+    environment: &ghost_mail_bridge_env
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      DATABASE_URL: ${DATABASE_URL:-mysql://ghost_mail_bridge:ghost_mail_bridge@mysql:3306/ghost_mail_bridge}
+      SES_EVENTS_QUEUE_URL: ${SES_EVENTS_QUEUE_URL}
+      NEWSLETTER_SEND_QUEUE_URL: ${NEWSLETTER_SEND_QUEUE_URL}
+      NEWSLETTER_SEND_DLQ_URL: ${NEWSLETTER_SEND_DLQ_URL:-}
+      SES_CONFIGURATION_SET: ${SES_CONFIGURATION_SET:-ghost-mail-bridge}
+      PROXY_API_KEY: ${PROXY_API_KEY}
+      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SEND_CONCURRENCY: ${SEND_CONCURRENCY:-10}
+      SEND_BATCH_SIZE: ${SEND_BATCH_SIZE:-1000}
+      SEND_BATCH_CONCURRENCY: ${SEND_BATCH_CONCURRENCY:-2}
+      SUPPRESSION_RETENTION_DAYS: ${SUPPRESSION_RETENTION_DAYS:-0}
+      ADMIN_BASE_PATH: ${ADMIN_BASE_PATH:-/ghost/mail}
+      GHOST_ADMIN_URL: ${GHOST_ADMIN_URL:-}
+      ALLOW_INSECURE_GHOST_ADMIN_URL: ${ALLOW_INSECURE_GHOST_ADMIN_URL:-}
+      GHOST_ACCEPT_VERSION: ${GHOST_ACCEPT_VERSION:-v6.0}
+      APP_ROLE: api
     restart: unless-stopped
+
+  ghost-mail-bridge-worker:
+    build: .
+    # Or use the same pre-built image:
+    # image: ghcr.io/ifrederico/ghost-mail-bridge:latest
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    environment:
+      <<: *ghost_mail_bridge_env
+      APP_ROLE: worker
+    restart: unless-stopped
+
+volumes:
+  mysql-data:

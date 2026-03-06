@@ -10,6 +10,13 @@
       "bounces": 143,
       "complaints": 26,
       "unsubscribes": 912
+    },
+    "jobs": {
+      "queued": 3,
+      "processing": 2,
+      "partial": 1,
+      "failed": 1,
+      "completed": 87
     }
   },
   "health": {
@@ -18,10 +25,40 @@
     "timestamp": "2026-03-03T12:00:00.000Z",
     "path": "/ghost/mail",
     "tables": {
-      "message_map": 9342,
+      "batches": 94,
+      "send_jobs": 94,
       "recipient_emails": 42890,
       "events": 115202,
       "suppressions": 1081
+    },
+    "jobs": {
+      "queued": 3,
+      "processing": 2,
+      "partial": 1,
+      "failed": 1,
+      "completed": 87
+    },
+    "queues": {
+      "newsletterSend": {
+        "visible": 3,
+        "inFlight": 2,
+        "delayed": 0
+      },
+      "sesEvents": {
+        "visible": 37,
+        "inFlight": 12,
+        "delayed": 0
+      },
+      "errors": {
+        "newsletterSend": "",
+        "sesEvents": ""
+      }
+    },
+    "worker": {
+      "isRunning": true,
+      "lastPollStartedAt": "2026-03-03T11:59:31.000Z",
+      "lastPollFinishedAt": "2026-03-03T11:59:35.000Z",
+      "lastErrorMessage": ""
     },
     "poller": {
       "isRunning": true,

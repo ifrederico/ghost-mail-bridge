@@ -1,0 +1,17 @@
+[Unit]
+Description=Ghost Mail Bridge Worker
+After=network.target ghost-mail-bridge-api.service
+
+[Service]
+Type=simple
+User=ghost-mail-bridge
+Group=ghost-mail-bridge
+WorkingDirectory=/opt/ghost-mail-bridge/current
+EnvironmentFile=/opt/ghost-mail-bridge/config.env
+Environment=APP_ROLE=worker
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

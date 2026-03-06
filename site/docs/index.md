@@ -16,14 +16,15 @@ Ghost sends emails through two separate lanes:
 | Lane | What it sends | How it works |
 |------|--------------|-------------|
 | **Transactional** | Magic links, password resets, staff invites | SES via SMTP (no bridge needed) |
-| **Newsletter** | Bulk subscriber emails | Ghost → Bridge → SES |
+| **Newsletter** | Bulk subscriber emails | Ghost → Bridge API → MySQL + SQS → Bridge worker → SES |
 
 For event tracking (deliveries, opens, clicks, bounces, complaints), the flow goes the other direction:
 
 ```
-SES → SNS → SQS → Bridge (polls the queue) → SQLite
-                                                 ↑
-                                      Ghost reads events from here
+Ghost send request → API → MySQL batch/job rows → SQS send queue → worker → SES
+SES → SNS → SQS → worker → MySQL events/suppressions
+                               ↑
+                    Ghost reads events from here
 ```
 
 ## Getting started
@@ -39,7 +40,9 @@ cp .env.example .env
 Open `.env` and fill in your AWS credentials. At minimum you need:
 
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-- `SQS_QUEUE_URL` — your SQS queue that receives SES events
+- `DATABASE_URL` — MySQL connection string for the bridge
+- `SES_EVENTS_QUEUE_URL` — your SQS queue that receives SES events
+- `NEWSLETTER_SEND_QUEUE_URL` — your dedicated SQS queue for outbound newsletter jobs
 - `PROXY_API_KEY` — the API key Ghost will use to authenticate (you pick this)
 - `MAILGUN_DOMAIN` — the domain value Ghost sends (e.g. `mg.yourdomain.com`)
 
@@ -54,7 +57,7 @@ docker compose up -d
 
 **Without Docker:**
 
-Requires Node.js 20+ and build tools for better-sqlite3 (`python3`, `make`, `g++`).
+Requires Node.js 20+ and a reachable MySQL instance.
 
 ```bash
 npm install
@@ -73,7 +76,8 @@ You should see:
 {
   "status": "ok",
   "tables": {
-    "message_map": 0,
+    "batches": 0,
+    "send_jobs": 0,
     "recipient_emails": 0,
     "events": 0,
     "suppressions": 0
@@ -143,7 +147,7 @@ Run through this checklist after setup:
 
 ## Admin dashboard
 
-The bridge includes a dashboard for monitoring at `/ghost/mail` (configurable via `ADMIN_BASE_PATH`). It shows send summaries, delivery rates, failures, and poller status.
+The bridge includes a dashboard for monitoring at `/ghost/mail` (configurable via `ADMIN_BASE_PATH`). It shows send summaries, queued/processing/failed batch counts, worker state, and SES-event poller status.
 
 Authentication uses your Ghost admin session by default. Set `GHOST_ADMIN_URL` to your Ghost HTTPS URL.
 
@@ -179,12 +183,16 @@ You need these AWS resources:
 
 1. **SES** — a verified domain identity and a Configuration Set (for event publishing)
 2. **SNS** — a topic that SES publishes events to
-3. **SQS** — a queue subscribed to that SNS topic (plus a dead-letter queue, recommended)
+3. **SQS (events)** — a queue subscribed to that SNS topic
+4. **SQS (newsletter send)** — a dedicated outbound queue for newsletter jobs
+5. **SQS DLQ (recommended)** — a dead-letter queue for newsletter send failures
+6. **MySQL** — a dedicated bridge database
 
 The IAM user/role for the bridge needs:
 
 - `ses:SendRawEmail`
-- `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes`
+- `sqs:SendMessage` on the newsletter send queue
+- `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes` on the newsletter send queue and SES event queue
 
 Make sure your SQS policy only allows your SNS topic to publish to it (`aws:SourceArn`).
 
@@ -196,7 +204,9 @@ Make sure your SQS policy only allows your SNS topic to publish to it (`aws:Sour
 |----------|-------------|
 | `AWS_ACCESS_KEY_ID` | IAM access key |
 | `AWS_SECRET_ACCESS_KEY` | IAM secret key |
-| `SQS_QUEUE_URL` | SQS queue URL for SES events |
+| `DATABASE_URL` | MySQL connection string for the bridge |
+| `SES_EVENTS_QUEUE_URL` | SQS queue URL for SES events |
+| `NEWSLETTER_SEND_QUEUE_URL` | Dedicated SQS queue URL for outbound newsletter jobs |
 | `PROXY_API_KEY` | API key Ghost uses to authenticate (you choose this) |
 | `MAILGUN_DOMAIN` | Domain value Ghost sends (e.g. `mg.yourdomain.com`) |
 
@@ -205,15 +215,18 @@ Make sure your SQS policy only allows your SNS topic to publish to it (`aws:Sour
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AWS_REGION` | `us-east-1` | AWS region |
+| `APP_ROLE` | `all` | Runtime role: `api`, `worker`, or `all` |
 | `SES_CONFIGURATION_SET` | `ghost-mail-bridge` | SES Configuration Set name |
 | `PORT` | `3003` | HTTP port |
 | `LOG_LEVEL` | `info` | Set `debug` for per-recipient logs |
 | `SEND_CONCURRENCY` | `10` | Max parallel SES sends |
+| `SEND_BATCH_SIZE` | `1000` | Max recipients per Ghost-like worker batch |
+| `SEND_BATCH_CONCURRENCY` | `2` | Max parallel worker batches per send job |
 | `SUPPRESSION_RETENTION_DAYS` | `0` | Suppression retention (`0` = forever) |
 | `ADMIN_BASE_PATH` | `/ghost/mail` | Dashboard URL path |
 | `GHOST_ADMIN_URL` | *empty* | Ghost HTTPS base URL for dashboard auth |
 | `ALLOW_INSECURE_GHOST_ADMIN_URL` | `false` | Allow `http://` Ghost admin URL only for trusted local/private setups |
-| `DB_PATH` | *auto* | Override SQLite path |
+| `NEWSLETTER_SEND_DLQ_URL` | *empty* | Optional DLQ URL for docs/ops parity |
 
 <details>
 <summary>Advanced configuration (optional)</summary>
@@ -248,19 +261,15 @@ All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/mail`).
 
 ## Storage
 
-SQLite database location (in priority order):
+The bridge now uses MySQL only.
 
-1. `DB_PATH` env var if set
-2. `/data/ses-proxy.db` if `/data` is writable (Docker/VPS)
-3. `./data/ses-proxy.db` fallback (macOS local dev)
+Core tables: `batches`, `send_jobs`, `recipient_emails`, `events`, `suppressions`, `runtime_heartbeats`.
 
-Tables: `message_map`, `recipient_emails`, `events`, `suppressions`.
-
-Daily cleanup removes send/event data older than 90 days. Suppressions are kept forever unless `SUPPRESSION_RETENTION_DAYS` is set.
+Daily cleanup removes batch/send/event data older than the configured retention windows. Suppressions are kept forever unless `SUPPRESSION_RETENTION_DAYS` is set.
 
 ## Limitations
 
 - Only implements the Mailgun API surface that Ghost actually uses — not a general-purpose Mailgun replacement.
 - No attachment support.
 - Event tracking is not instant — the bridge polls SQS on an interval.
-- SQLite means single-instance only — not designed for horizontal scaling.
+- This release does not migrate old SQLite data. Keep the old file as backup/reference only.

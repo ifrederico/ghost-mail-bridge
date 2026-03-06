@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:api": "APP_ROLE=api node server.js",
+    "start:worker": "APP_ROLE=worker node server.js",
     "dev": "node --watch --env-file=.env server.js",
+    "dev:api": "APP_ROLE=api node --watch --env-file=.env server.js",
+    "dev:worker": "APP_ROLE=worker node --watch --env-file=.env server.js",
     "lint": "eslint .",
     "ghost:sync-mailgun-settings": "bash scripts/sync-ghost-mailgun-settings.sh",
     "ghost:reset-mailgun-settings": "bash scripts/reset-ghost-mailgun-settings.sh"
@@ -35,9 +39,9 @@
   "dependencies": {
     "@aws-sdk/client-ses": "^3.700.0",
     "@aws-sdk/client-sqs": "^3.700.0",
-    "better-sqlite3": "^11.0.0",
     "busboy": "^1.6.0",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "mysql2": "^3.12.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

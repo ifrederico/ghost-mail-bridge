@@ -17,14 +17,15 @@ Ghost sends emails through two separate “lanes”:
 | Lane | What it sends | How it works with the bridge |
 |------|--------------|------|
 | **Transactional** | Magic links, password resets, staff invites | SES via SMTP (no bridge needed) |
-| **Newsletter** | Bulk subscriber emails | Ghost → bridge (Fake Mailgun) → SES |
+| **Newsletter** | Bulk subscriber emails | Ghost → bridge API (Fake Mailgun) → MySQL + SQS → bridge worker → SES |
 
 For **event tracking** (deliveries, opens, clicks, bounces, complaints), the flow goes the other direction:
 
 ```
-SES → SNS → SQS → bridge (polls the queue) → stores in SQLite
-                                                     ↑
-                                          Ghost reads events from here
+Ghost send request → API → MySQL batch/job rows → SQS send queue → worker → SES
+SES → SNS → SQS → worker → MySQL events/suppressions
+                               ↑
+                    Ghost reads events from here
 ```
 
 Ghost mail bridge also includes a **admin dashboard** so you can see what's going on without digging through logs.
@@ -44,7 +45,9 @@ cp .env.example .env
 Open `.env` and fill in your AWS credentials and settings. At minimum you'll need:
 
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-- `SQS_QUEUE_URL` — your SQS queue that receives SES events
+- `DATABASE_URL` — MySQL connection string for the bridge
+- `SES_EVENTS_QUEUE_URL` — your SQS queue that receives SES events
+- `NEWSLETTER_SEND_QUEUE_URL` — your dedicated SQS queue for outbound newsletter jobs
 - `PROXY_API_KEY` — the API key Ghost will use to authenticate (you pick this)
 - `MAILGUN_DOMAIN` — the domain value Ghost sends (e.g., `mg.yourdomain.com`)
 
@@ -62,7 +65,7 @@ docker compose up -d
 
 **Without Docker:**
 
-You'll need Node.js 20+ and build tools for `better-sqlite3` (`python3`, `make`, `g++`).
+You'll need Node.js 20+ and a reachable MySQL instance.
 
 ```bash
 npm install
@@ -81,7 +84,8 @@ You should see something like:
 {
   "status": "ok",
   "tables": {
-    "message_map": 0,
+    "batches": 0,
+    "send_jobs": 0,
     "recipient_emails": 0,
     "events": 0,
     "suppressions": 0
@@ -139,6 +143,10 @@ MAILGUN_DOMAIN=mg.yourdomain.com \
 bash scripts/reset-ghost-mailgun-settings.sh
 ```
 
+### 5. Optional isolated host install
+
+If you want a Ghost-like `/opt/ghost-mail-bridge` deployment with separate API and worker services, use the templates in [`deploy/README.md`](./deploy/README.md), [`deploy/systemd/ghost-mail-bridge-api.service`](./deploy/systemd/ghost-mail-bridge-api.service), [`deploy/systemd/ghost-mail-bridge-worker.service`](./deploy/systemd/ghost-mail-bridge-worker.service), and [`deploy/caddy/Caddyfile.example`](./deploy/caddy/Caddyfile.example).
+
 ---
 
 ## Verify everything works
@@ -157,7 +165,7 @@ Run through this checklist after setup:
 
 The bridge includes a simple dashboard for monitoring at `/ghost/mail` (configurable via `ADMIN_BASE_PATH`).
 
-It shows send summaries, failures, and poller status. Authentication uses your Ghost admin session by default. Set `GHOST_ADMIN_URL` to your Ghost HTTPS URL.
+It shows send summaries, queued/processing/failed batch counts, worker status, and SES-event poller status. Authentication uses your Ghost admin session by default. Set `GHOST_ADMIN_URL` to your Ghost HTTPS URL.
 
 For local styling/development work without a Ghost session, you can use demo mode:
 
@@ -182,14 +190,18 @@ location /ghost/mail/ {
 
 You'll need these AWS resources:
 
-1. **SES** — a verified domain identity and a Configuration Set (for event publishing)
+1. **SES** — a verified domain identity and a Configuration Set
 2. **SNS** — a topic that SES publishes events to
-3. **SQS** — a queue subscribed to that SNS topic (plus a dead-letter queue, recommended)
+3. **SQS (events)** — a queue subscribed to that SNS topic for SES delivery/open/click/bounce/complaint events
+4. **SQS (newsletter send)** — a dedicated outbound queue for newsletter batch jobs
+5. **SQS DLQ (recommended)** — a dead-letter queue for newsletter send failures
+6. **MySQL** — a dedicated bridge database (preferred over sharing Ghost’s DB)
 
 The IAM user/role for the bridge needs these permissions:
 
 - `ses:SendRawEmail`
-- `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes`
+- `sqs:SendMessage` on the newsletter send queue
+- `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes` on the newsletter send queue and SES event queue
 
 Make sure your SQS policy only allows your SNS topic to publish to it (`aws:SourceArn`).
 
@@ -202,7 +214,7 @@ A few things to be aware of:
 - Only implements the slice of the Mailgun API that Ghost actually uses — this isn't a general-purpose Mailgun replacement.
 - **No attachment support**.
 - Event tracking is not instant.
-- SQLite means single-instance only — this isn't designed for horizontal scaling.
+- This release does not migrate old SQLite data. Keep the old file as backup/reference only.
 
 ---
 
@@ -214,7 +226,7 @@ A few things to be aware of:
 
 | Method | Path | What it does |
 |--------|------|-------------|
-| `POST` | `/v3/:domain/messages` | Send bulk email via SES |
+| `POST` | `/v3/:domain/messages` | Queue bulk email send via SES worker |
 | `GET` | `/v3/:domain/events` | Fetch events in Mailgun format |
 | `GET` | `/v3/:domain/events/:pageToken` | Fetch next event page |
 | `DELETE` | `/v3/:domain/:type/:email` | Delete a suppression record |
@@ -252,7 +264,9 @@ All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/mail`).
 |----------|-------------|
 | `AWS_ACCESS_KEY_ID` | IAM access key |
 | `AWS_SECRET_ACCESS_KEY` | IAM secret key |
-| `SQS_QUEUE_URL` | SQS queue URL for SES events |
+| `DATABASE_URL` | MySQL connection string for the bridge |
+| `SES_EVENTS_QUEUE_URL` | SQS queue URL for SES events |
+| `NEWSLETTER_SEND_QUEUE_URL` | Dedicated SQS queue URL for outbound newsletter jobs |
 | `PROXY_API_KEY` | API key Ghost uses to authenticate (you choose this) |
 | `MAILGUN_DOMAIN` | Domain value Ghost sends (e.g., `mg.yourdomain.com`) |
 
@@ -261,15 +275,18 @@ All routes relative to `ADMIN_BASE_PATH` (default: `/ghost/mail`).
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AWS_REGION` | `us-east-1` | AWS region |
+| `APP_ROLE` | `all` | Runtime role: `api`, `worker`, or `all` |
 | `SES_CONFIGURATION_SET` | `ghost-mail-bridge` | SES Configuration Set name |
 | `PORT` | `3003` | HTTP port |
 | `LOG_LEVEL` | `info` | Set `debug` for per-recipient logs |
 | `SEND_CONCURRENCY` | `10` | Max parallel SES sends |
+| `SEND_BATCH_SIZE` | `1000` | Max recipients per Ghost-like worker batch |
+| `SEND_BATCH_CONCURRENCY` | `2` | Max parallel worker batches per send job |
 | `SUPPRESSION_RETENTION_DAYS` | `0` | Suppression retention (`0` = forever) |
 | `ADMIN_BASE_PATH` | `/ghost/mail` | Dashboard URL path |
 | `GHOST_ADMIN_URL` | *(empty)* | Ghost HTTPS base URL for dashboard auth (required if using dashboard) |
 | `ALLOW_INSECURE_GHOST_ADMIN_URL` | `false` | Allow `http://` Ghost admin URL only for trusted local/private setups |
-| `DB_PATH` | *(auto)* | Override SQLite path |
+| `NEWSLETTER_SEND_DLQ_URL` | *(empty)* | Optional DLQ URL for docs/ops parity |
 
 <details>
 <summary>Advanced configuration (optional)</summary>
@@ -280,22 +297,21 @@ For retry/backoff tuning, request-size limits, Ghost Admin API compatibility ove
 
 ### Storage
 
-SQLite database location (in priority order):
+The bridge now uses MySQL only.
 
-1. `DB_PATH` env var if set
-2. `/data/ses-proxy.db` if `/data` is writable (Docker/VPS)
-3. `./data/ses-proxy.db` fallback (macOS local dev)
+Core tables: `batches`, `send_jobs`, `recipient_emails`, `events`, `suppressions`, `runtime_heartbeats`.
 
-Tables: `message_map`, `recipient_emails`, `events`, `suppressions`.
-
-Daily cleanup removes send/event data older than 90 days. Suppressions are kept forever unless `SUPPRESSION_RETENTION_DAYS` is set.
+Daily cleanup removes batch/send/event data older than the configured retention windows. Suppressions are kept forever unless `SUPPRESSION_RETENTION_DAYS` is set.
 
 ### Local development
 
 ```bash
 cp .env.example .env
 npm install
-npm run dev    # loads .env automatically
+npm run dev         # API + worker in one process
+# or split roles locally:
+npm run dev:api
+npm run dev:worker
 ```
 
 For dashboard-only work without AWS, use the local dev/testing switches documented in [Advanced configuration](./site/docs/advanced-config.md).
