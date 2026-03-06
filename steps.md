@@ -29,6 +29,22 @@ Use AWS SES for:
 
 Without changing Ghost source code.
 
+## Current scope
+
+This version of the bridge:
+
+- sends newsletter batches inline during the Ghost request
+- queues and processes SES delivery events asynchronously through SNS -> SQS
+
+That means:
+
+- event tracking is already queue-based
+- newsletter sending itself is not yet queue-first
+
+For most self-hosted small/medium publications, that is acceptable.
+
+If larger publications start hitting Ghost timeouts during newsletter send, a future version could move newsletter sending itself to a background queue.
+
 ## 1. AWS Setup
 
 ### 1.1 Verify your sending domain in SES
